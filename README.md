@@ -2,6 +2,7 @@
 
 <div align="center">
   <img src="icon.png" alt="Logo" width="128" height="128">
+  
   <p>为 ChatGPT 和 Google Gemini 等 AI 对话页面添加右侧悬浮目录导航，支持 Markdown 导出。</p>
 </div>
 
