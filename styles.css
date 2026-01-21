@@ -1,0 +1,97 @@
+/* 主容器样式 */
+#ai-toc-container {
+  position: fixed;
+  top: 100px; /* 距离顶部一定距离 */
+  right: 20px;
+  width: 250px;
+  max-height: calc(100vh - 140px); /* 动态最大高度：屏幕高度 - 顶部距离(100) - 底部留白(40) */
+  display: flex; /* 使用 flex 布局 */
+  flex-direction: column; /* 垂直排列 */
+  background-color: rgba(32, 33, 35, 0.9); /* ChatGPT 风格深色背景 */
+  color: #ececf1;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 12px;
+  z-index: 9999;
+  font-family: 'Söhne', 'ui-sans-serif', 'system-ui', -apple-system, 'Segoe UI', Roboto, Ubuntu, Cantarell, 'Noto Sans', sans-serif, 'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  font-size: 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  transition: opacity 0.3s ease;
+}
+
+/* 列表容器 - 只有这部分滚动 */
+#ai-toc-list {
+  overflow-y: auto;
+  /* 滚动条样式 */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+/* 隐藏时 */
+#ai-toc-container.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* 标题区域 */
+.ai-toc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-weight: bold;
+  font-size: 12px;
+  color: #9b9b9b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* 列表项 */
+.ai-toc-item {
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  cursor: pointer;
+  border-radius: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #c5c5d2;
+  transition: background-color 0.2s;
+}
+
+.ai-toc-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+/* 当前激活项 */
+.ai-toc-item.active {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border-left: 3px solid #10a37f; /* ChatGPT 绿色 */
+  padding-left: 5px; /* 调整内边距以补偿 border */
+}
+
+/* 最小化按钮 */
+.ai-toc-toggle {
+  display: none; /* 隐藏最小化按钮 */
+}
+
+/* 导出按钮 */
+.ai-toc-export {
+  cursor: pointer;
+  opacity: 0.7;
+  margin-right: 8px;
+  font-size: 14px;
+}
+.ai-toc-export:hover {
+  opacity: 1;
+  color: #fff;
+}
+
+.ai-toc-controls {
+  display: flex;
+  align-items: center;
+}
