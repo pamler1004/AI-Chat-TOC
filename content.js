@@ -162,6 +162,12 @@ function parseChatGPT() {
 
   // 只有当数量变化或内容变化时才更新（简单比较长度）
   // 实际应用中可以做更精细的 diff，这里先简单全量更新
+  // 如果没有变化，直接返回，避免触发重绘
+  if (tocItems.length === newItems.length && 
+      tocItems.every((item, i) => item.text === newItems[i].text && item.id === newItems[i].id)) {
+    return;
+  }
+  
   tocItems = newItems;
 }
 
@@ -198,6 +204,12 @@ function parseGemini() {
       });
     }
   });
+
+  // 简单的 Diff 检查
+  if (tocItems.length === newItems.length && 
+      tocItems.every((item, i) => item.text === newItems[i].text && item.id === newItems[i].id)) {
+    return;
+  }
 
   tocItems = newItems;
 }
@@ -290,12 +302,25 @@ function extractGeminiContent() {
   
   const messageBlocks = document.querySelectorAll(allSelectors);
   
-  // 去重（防止同一个元素被多个选择器选中）
-  // Set 存储的是引用，可以直接去重
-  const uniqueBlocks = new Set([...messageBlocks]);
+  // 优化：过滤掉嵌套元素（防止父子元素同时被选中导致重复）
+  // querySelectorAll 返回的是按文档顺序排列的 NodeList
+  // 增加过滤：只保留可见元素
+  const blocks = Array.from(messageBlocks).filter(el => el.offsetParent !== null);
+  const topLevelBlocks = [];
+  
+  blocks.forEach(block => {
+    // 检查当前 block 是否是 topLevelBlocks 中某个元素的后代
+    // 如果是，说明父元素已经被选中了，当前子元素应该忽略
+    const isChild = topLevelBlocks.some(parent => parent.contains(block));
+    if (!isChild) {
+      topLevelBlocks.push(block);
+    }
+  });
 
-  if (uniqueBlocks.size > 0) {
-      uniqueBlocks.forEach(block => {
+  const recentTexts = []; // 用于连续文本去重 (最近 3 条)
+
+  if (topLevelBlocks.length > 0) {
+      topLevelBlocks.forEach(block => {
           // 判断角色
           // 只要匹配任意一个 User 选择器，或者内部包含 User 元素，就算 User
           const isUser = userSelectors.some(sel => block.matches(sel)) || 
@@ -306,9 +331,22 @@ function extractGeminiContent() {
           
           if (!text.trim()) return;
 
+          // 文本去重：规范化后比较
+          const normalizedText = text.trim().replace(/\s+/g, ' ');
+          if (recentTexts.includes(normalizedText)) return;
+          
+          recentTexts.push(normalizedText);
+          if (recentTexts.length > 5) recentTexts.shift(); // 保持最近 5 条记录
+
           if (isUser) {
-              md += `## 🙋 ${text.substring(0, 50)}${text.length > 50 ? '...' : ''}\n\n`;
-              md += `**User:**\n\n${text}\n\n`;
+              const title = text.length > 50 ? text.substring(0, 50) + '...' : text;
+              md += `## 🙋 ${title}\n\n`;
+              
+              // 只有当文本被截断，或者包含换行符（长文本）时，才重复显示 User 内容
+              // 这样可以避免短问题在标题和正文中重复出现，提高可读性
+              if (text.length > 50 || text.includes('\n')) {
+                md += `**User:**\n\n${text}\n\n`;
+              }
           } else {
               const quotedText = text.split('\n').map(line => `> ${line}`).join('\n');
               md += `**AI:**\n\n${quotedText}\n\n`;
@@ -350,14 +388,13 @@ function renderTOC() {
   const list = document.getElementById('ai-toc-list');
   if (!list) return;
 
-  list.innerHTML = '';
-
+  // 如果没有目录项，隐藏整个容器
   if (tocItems.length === 0) {
-    // 如果没有目录项，隐藏整个容器
     const container = document.getElementById('ai-toc-container');
     if (container) {
       container.style.display = 'none';
     }
+    list.innerHTML = ''; // 清空内容
     return;
   }
 
@@ -367,24 +404,77 @@ function renderTOC() {
     container.style.display = 'flex';
   }
 
-  tocItems.forEach(item => {
-    const div = document.createElement('div');
-    div.className = 'ai-toc-item';
-    div.innerText = item.text;
-    div.title = item.text; // 鼠标悬停显示全文
+  // 增量更新 (Diff) 逻辑
+  // 1. 获取当前 DOM 中的所有目录项
+  const existingItems = Array.from(list.children);
+
+  // 2. 遍历新的数据
+  tocItems.forEach((item, index) => {
+    let div = existingItems[index];
+
+    // 如果该位置没有元素，或者该位置的元素不是我们要的（这里假设按顺序一一对应）
+    // 为了简单稳健，如果 ID 或 文本 不匹配，就直接替换内容
+    if (!div) {
+      div = document.createElement('div');
+      div.className = 'ai-toc-item';
+      div.onclick = createClickHandler(item, div);
+      list.appendChild(div);
+    } else {
+      // 检查点击事件是否需要更新（通常闭包不需要，但 ID 可能会变）
+      // 这里为了保险，重新绑定一下 onclick 其实开销很小，或者只在 ID 变了时更新
+      // 但为了简单，如果文本变了，我们更新文本
+      // 如果 ID 变了，我们需要更新点击处理函数
+    }
+
+    // 更新文本和标题
+    if (div.innerText !== item.text) {
+      div.innerText = item.text;
+      div.title = item.text;
+    }
     
-    div.onclick = () => {
-      // 滚动到对应元素
-      const target = document.getElementById(item.id);
-      if (target) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        // 高亮一下
-        highlightActive(div);
-      }
-    };
-    
-    list.appendChild(div);
+    // 更新点击事件（确保闭包里的 item 是最新的）
+    // 注意：直接重新赋值 onclick 会覆盖旧的
+    div.onclick = createClickHandler(item, div);
+
+    // 标记为已处理（实际上我们是按索引来的，不需要额外标记，最后删除多余的即可）
   });
+
+  // 3. 删除多余的 DOM 元素
+  while (list.children.length > tocItems.length) {
+    list.removeChild(list.lastChild);
+  }
+}
+
+// 提取点击处理函数，避免闭包陷阱
+function createClickHandler(item, div) {
+  return () => {
+    // 滚动到对应元素
+    let target = document.getElementById(item.id);
+    
+    // 修复 Gemini 等动态页面中元素 ID 丢失或 DOM 重建的问题
+    if (!target || !document.body.contains(target)) {
+      // 尝试强制刷新一次 DOM 解析
+      if (currentPlatform === 'chatgpt') parseChatGPT();
+      else if (currentPlatform === 'gemini') parseGemini();
+      
+      // 尝试通过文本内容重新定位元素
+      const newItem = tocItems.find(t => t.text === item.text);
+      if (newItem) {
+        target = document.getElementById(newItem.id);
+      }
+    }
+
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // 高亮一下
+      highlightActive(div);
+
+      // 修复 Gemini 跳转不稳定：有时候第一次没滚过去，延时再滚一次
+      setTimeout(() => {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 150);
+    }
+  };
 }
 
 function highlightActive(activeDiv) {
