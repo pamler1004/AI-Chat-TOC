@@ -1,36 +1,53 @@
 /* 主容器样式 */
 #ai-toc-container {
   position: fixed;
-  top: 100px; /* 距离顶部一定距离 */
-  right: 20px;
-  width: 250px;
-  max-height: calc(100vh - 140px); /* 动态最大高度：屏幕高度 - 顶部距离(100) - 底部留白(40) */
-  display: flex; /* 使用 flex 布局 */
-  flex-direction: column; /* 垂直排列 */
-  background-color: rgba(32, 33, 35, 0.9); /* ChatGPT 风格深色背景 */
+  top: 40vh;
+  right: 20px; /* 保持固定距离，避免展开时跳动 */
+  width: 40px; /* 默认收起宽度 */
+  max-height: 55vh;
+  display: flex;
+  flex-direction: column;
+  background-color: transparent; /* 默认背景透明 */
   color: #ececf1;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: none; /* 默认无边框 */
   border-radius: 12px;
-  padding: 12px;
+  padding: 12px 0; /* 默认无左右内边距 */
   z-index: 9999;
   font-family: 'Söhne', 'ui-sans-serif', 'system-ui', -apple-system, 'Segoe UI', Roboto, Ubuntu, Cantarell, 'Noto Sans', sans-serif, 'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   font-size: 14px;
+  box-shadow: none; /* 默认无阴影 */
+  transition: width 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              background-color 0.2s ease,
+              box-shadow 0.2s ease,
+              padding 0.2s ease,
+              border 0.2s ease;
+  overflow: hidden; /* 裁剪溢出内容 */
+}
+
+/* 鼠标悬停展开状态，或被固定时 */
+#ai-toc-container:hover,
+#ai-toc-container.pinned {
+  width: 250px;
+  background-color: rgba(32, 33, 35, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  transition: opacity 0.3s ease;
+  padding: 12px;
+  transition-duration: 0.25s; /* 展开稍微慢一点点，显得自然 */
 }
 
 /* 列表容器 - 只有这部分滚动 */
 #ai-toc-list {
   overflow-y: auto;
+  overflow-x: hidden;
   /* 滚动条样式 */
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  padding-right: 4px; /* 避免滚动条遮挡 */
 }
 
 /* 隐藏时 */
 #ai-toc-container.hidden {
-  opacity: 0;
-  pointer-events: none;
+  display: none;
 }
 
 /* 标题区域 */
@@ -39,39 +56,86 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
-  padding-bottom: 8px;
+  padding: 0 8px 8px 8px; /* 增加左右 padding 与列表项对齐 */
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   font-weight: bold;
   font-size: 12px;
   color: #9b9b9b;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  opacity: 0; /* 默认隐藏 */
+  transition: opacity 0.2s ease;
+  white-space: nowrap;
+}
+
+#ai-toc-container:hover .ai-toc-header,
+#ai-toc-container.pinned .ai-toc-header {
+  opacity: 1;
 }
 
 /* 列表项 */
 .ai-toc-item {
-  padding: 6px 8px;
+  position: relative;
+  padding: 6px 24px 6px 8px; /* 右侧留出空间给指示条 */
   margin-bottom: 4px;
   cursor: pointer;
   border-radius: 6px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: transparent; /* 默认文字透明 */
+  transition: all 0.2s;
+}
+
+#ai-toc-container:hover .ai-toc-item,
+#ai-toc-container.pinned .ai-toc-item {
   color: #c5c5d2;
-  transition: background-color 0.2s;
 }
 
 .ai-toc-item:hover {
   background-color: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  color: #fff !important;
+}
+
+/* 列表项指示条 (伪元素) */
+.ai-toc-item::after {
+  content: '';
+  position: absolute;
+  right: 12px; /* 固定在右侧 */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 12px; /* 默认高度 */
+  background-color: #5f6368; /* 默认灰色 */
+  border-radius: 4px;
+  transition: background-color 0.3s, height 0.3s;
+  opacity: 0.6;
+}
+
+/* 悬停容器时，调整指示条位置适应 padding 变化 */
+#ai-toc-container:hover .ai-toc-item::after,
+#ai-toc-container.pinned .ai-toc-item::after {
+  right: 8px;
+  opacity: 1;
 }
 
 /* 当前激活项 */
 .ai-toc-item.active {
+  background-color: transparent;
+}
+
+#ai-toc-container:hover .ai-toc-item.active,
+#ai-toc-container.pinned .ai-toc-item.active {
   background-color: rgba(255, 255, 255, 0.15);
   color: #fff;
-  border-left: 3px solid #10a37f; /* ChatGPT 绿色 */
-  padding-left: 5px; /* 调整内边距以补偿 border */
+}
+
+/* 激活项指示条高亮 */
+.ai-toc-item.active::after {
+  background-color: #8ab4f8; /* 蓝色高亮 */
+  height: 16px; /* 激活时变长 */
+  width: 4px;
+  opacity: 1;
 }
 
 /* 最小化按钮 */
@@ -79,16 +143,28 @@
   display: none; /* 隐藏最小化按钮 */
 }
 
-/* 导出按钮 */
-.ai-toc-export {
+/* 导出和固定按钮 */
+.ai-toc-export,
+.ai-toc-pin {
   cursor: pointer;
   opacity: 0.7;
-  margin-right: 8px;
+  margin-left: 12px; /* 增加按钮间距 */
   font-size: 14px;
+  display: flex; /* 确保图标居中 */
+  align-items: center;
 }
-.ai-toc-export:hover {
+
+.ai-toc-export:hover,
+.ai-toc-pin:hover {
   opacity: 1;
   color: #fff;
+}
+
+.ai-toc-pin.active {
+  opacity: 1;
+  color: #8ab4f8; /* 激活时显示蓝色 */
+  transform: rotate(45deg); /* 稍微旋转一下表示钉住 */
+  transition: transform 0.2s;
 }
 
 .ai-toc-controls {

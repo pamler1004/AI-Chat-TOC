@@ -74,16 +74,35 @@ function createContainer() {
       <line x1="12" y1="15" x2="12" y2="3"></line>
     </svg>
   `;
+
+  const pinIcon = `
+    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="12" y1="17" x2="12" y2="22"></line>
+      <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path>
+    </svg>
+  `;
   
   header.innerHTML = `
     <span>目录</span>
     <div class="ai-toc-controls">
       <span class="ai-toc-export" title="导出为Markdown">${downloadIcon}</span>
+      <span class="ai-toc-pin" title="固定/取消固定">${pinIcon}</span>
     </div>
   `;
   
   // 导出功能
   header.querySelector('.ai-toc-export').onclick = exportToMarkdown;
+  
+  // 固定功能
+  const pinBtn = header.querySelector('.ai-toc-pin');
+  pinBtn.onclick = () => {
+    container.classList.toggle('pinned');
+    if (container.classList.contains('pinned')) {
+      pinBtn.classList.add('active');
+    } else {
+      pinBtn.classList.remove('active');
+    }
+  };
   
   /* 已移除最小化功能
   header.querySelector('.ai-toc-toggle').onclick = () => {
