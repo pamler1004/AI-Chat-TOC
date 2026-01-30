@@ -4,15 +4,15 @@
   "version": "1.2",
   "description": "为ChatGPT和Gemini等AI对话页面添加右侧目录导航",
   "icons": {
-    "16": "icon.png",
-    "48": "icon.png",
-    "128": "icon.png"
+    "16": "icon.svg",
+    "48": "icon.svg",
+    "128": "icon.svg"
   },
   "action": {
     "default_icon": {
-      "16": "icon.png",
-      "48": "icon.png",
-      "128": "icon.png"
+      "16": "icon.svg",
+      "48": "icon.svg",
+      "128": "icon.svg"
     }
   },
   "permissions": [],
