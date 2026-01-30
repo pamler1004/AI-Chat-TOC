@@ -1,4 +1,4 @@
-# AI Chat TOC (AI 对话目录)
+# AI Chat TOC (AI 对话目录) v1.2
 
 <div align="center">
   <img src="icon.png" alt="Logo" width="128" height="128">
