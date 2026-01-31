@@ -484,13 +484,13 @@ function createClickHandler(item, div) {
     }
 
     if (target) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.scrollIntoView({ behavior: 'auto', block: 'center' });
       // 高亮一下
       highlightActive(div);
 
       // 修复 Gemini 跳转不稳定：有时候第一次没滚过去，延时再滚一次
       setTimeout(() => {
-        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.scrollIntoView({ behavior: 'auto', block: 'center' });
       }, 150);
     }
   };
