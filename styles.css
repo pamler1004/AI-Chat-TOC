@@ -76,7 +76,7 @@
 /* 列表项 */
 .ai-toc-item {
   position: relative;
-  padding: 6px 24px 6px 8px; /* 右侧留出空间给指示条 */
+  padding: 6px 8px 6px 36px; /* 左侧留出空间给收藏图标 */
   margin-bottom: 4px;
   cursor: pointer;
   border-radius: 6px;
@@ -85,6 +85,11 @@
   text-overflow: ellipsis;
   color: transparent; /* 默认文字透明 */
   transition: all 0.2s;
+}
+
+/* 容器收起时的列表项 */
+#ai-toc-container:not(:hover):not(.pinned) .ai-toc-item {
+  padding-left: 24px; /* 收起时减少左侧 padding */
 }
 
 #ai-toc-container:hover .ai-toc-item,
@@ -97,50 +102,50 @@
   color: #fff !important;
 }
 
-/* 列表项指示条 (伪元素) */
-.ai-toc-item::after {
-  content: '';
+/* 收藏图标 - 在左侧 */
+.ai-toc-item::before {
+  content: '●'; /* 圆点，收起状态 */
   position: absolute;
-  right: 12px; /* 固定在右侧 */
+  left: 14px; /* 收起时居中 */
   top: 50%;
   transform: translateY(-50%);
-  width: 4px;
-  height: 12px; /* 默认高度 */
-  background-color: #5f6368; /* 默认灰色 */
-  border-radius: 4px;
-  transition: background-color 0.3s, height 0.3s;
+  font-size: 10px;
+  color: #5f6368; /* 灰色 */
+  transition: all 0.2s;
   opacity: 0.6;
 }
 
-/* 悬停容器时，调整指示条位置适应 padding 变化 */
-#ai-toc-container:hover .ai-toc-item::after,
-#ai-toc-container.pinned .ai-toc-item::after {
-  right: 8px;
+/* 展开或固定时，图标左移，显示星星 */
+#ai-toc-container:hover .ai-toc-item::before,
+#ai-toc-container.pinned .ai-toc-item::before {
+  content: '☆'; /* 空心星 */
+  left: 8px; /* 对齐左边 padding */
+  font-size: 16px;
+  opacity: 0.4;
+}
+
+/* 展开或固定时，已收藏状态 - 黄色实心星 */
+#ai-toc-container:hover .ai-toc-item.bookmarked::before,
+#ai-toc-container.pinned .ai-toc-item.bookmarked::before {
+  content: '★'; /* 实心星 */
+  color: #fbbf24; /* 黄色 */
   opacity: 1;
 }
 
-/* 当前激活项 */
-.ai-toc-item.active {
-  background-color: transparent;
-}
-
-#ai-toc-container:hover .ai-toc-item.active,
-#ai-toc-container.pinned .ai-toc-item.active {
-  background-color: rgba(255, 255, 255, 0.15);
-  color: #fff;
-}
-
-/* 激活项指示条高亮 */
-.ai-toc-item.active::after {
-  background-color: #8ab4f8; /* 蓝色高亮 */
-  height: 16px; /* 激活时变长 */
-  width: 4px;
+/* 收起时，已收藏状态 - 黄色圆点 */
+#ai-toc-container:not(:hover):not(.pinned) .ai-toc-item.bookmarked::before {
+  content: '●';
+  color: #fbbf24;
   opacity: 1;
 }
 
-/* 最小化按钮 */
-.ai-toc-toggle {
-  display: none; /* 隐藏最小化按钮 */
+/* 鼠标悬停在左侧收藏区域时，图标高亮 */
+.ai-toc-item:hover::before {
+  opacity: 0.8;
+}
+
+.ai-toc-item.bookmarked:hover::before {
+  opacity: 1;
 }
 
 /* 导出和固定按钮 */

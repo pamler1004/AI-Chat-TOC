@@ -35,6 +35,7 @@ const CONFIG = {
 // 状态
 let tocItems = [];
 let currentPlatform = 'unknown';
+let bookmarkedItems = new Set(); // 存储已收藏的项的 ID
 
 // 初始化
 function init() {
@@ -156,26 +157,31 @@ function updateTOC() {
 function parseChatGPT() {
   const selector = CONFIG.selectors.chatgpt.userMessage;
   const elements = document.querySelectorAll(selector);
-  
+
   const newItems = [];
-  
+
   elements.forEach((el, index) => {
     // 尝试获取文本内容
     // ChatGPT 的文本通常在内部的 div 中
     const textDiv = el.innerText || el.textContent;
     const text = textDiv.trim().split('\n')[0]; // 取第一行作为标题
-    
+
     // 生成唯一 ID
     if (!el.id) {
       el.id = 'ai-toc-msg-' + index;
     }
 
     if (text) {
-      newItems.push({
+      const newItem = {
         id: el.id,
         text: text,
         element: el
-      });
+      };
+      // 保留收藏状态
+      if (bookmarkedItems.has(el.id)) {
+        newItem.bookmarked = true;
+      }
+      newItems.push(newItem);
     }
   });
 
@@ -209,18 +215,24 @@ function parseGemini() {
   elements.forEach((el, index) => {
     // Gemini 的文本可能在内部
     const textDiv = el.innerText || el.textContent;
-    const text = textDiv.trim().split('\n')[0];
+    // 使用新的清理函数，能够跳过 "你说" 等系统标签
+    const text = cleanGeminiTitle(textDiv);
     
     if (!el.id) {
       el.id = 'ai-toc-msg-gemini-' + index;
     }
 
     if (text) {
-      newItems.push({
+      const newItem = {
         id: el.id,
         text: text,
         element: el
-      });
+      };
+      // 保留收藏状态
+      if (bookmarkedItems.has(el.id)) {
+        newItem.bookmarked = true;
+      }
+      newItems.push(newItem);
     }
   });
 
@@ -381,12 +393,30 @@ function extractGeminiContent() {
 
 // 清理多余文本
 function cleanChatText(text) {
-  // 移除常见的无关文本，如 "Copy code", "Regenerate" 等
-  // 这里做一个简单的清理，保留主要内容
   if (!text) return '';
   
+  let cleaned = text.trim();
+  
+  // 针对 Gemini 的 "你说" / "You said" 标签进行清理
+  // 移除开头的 "你说" 或 "You said" 以及随后的空白字符（包括换行）
+  const labels = [/^你说\s*/, /^You said\s*/i];
+  
+  for (const label of labels) {
+    if (label.test(cleaned)) {
+      cleaned = cleaned.replace(label, '').trim();
+    }
+  }
+  
   // 移除末尾的 "ChatGPT can make mistakes..." 等
-  return text.trim();
+  return cleaned;
+}
+
+// 专门用于提取标题的清理函数
+function cleanGeminiTitle(rawText) {
+  const cleaned = cleanChatText(rawText);
+  // 取第一行非空文本
+  const lines = cleaned.split('\n').map(l => l.trim()).filter(l => l);
+  return lines.length > 0 ? lines[0] : '';
 }
 
 // 触发下载
@@ -450,12 +480,19 @@ function renderTOC() {
       div.innerText = item.text;
       div.title = item.text;
     }
-    
+
+    // 更新收藏状态
+    if (item.bookmarked) {
+      div.classList.add('bookmarked');
+    } else {
+      div.classList.remove('bookmarked');
+    }
+
     // 更新点击事件（确保闭包里的 item 是最新的）
     // 注意：直接重新赋值 onclick 会覆盖旧的
     div.onclick = createClickHandler(item, div);
 
-    // 标记为已处理（实际上我们是按索引来的，不需要额外标记，最后删除多余的即可）
+    // 标记为已处理
   });
 
   // 3. 删除多余的 DOM 元素
@@ -464,18 +501,39 @@ function renderTOC() {
   }
 }
 
+// 切换收藏状态
+function toggleBookmark(itemId, div) {
+  if (bookmarkedItems.has(itemId)) {
+    bookmarkedItems.delete(itemId);
+    div.classList.remove('bookmarked');
+  } else {
+    bookmarkedItems.add(itemId);
+    div.classList.add('bookmarked');
+  }
+}
+
 // 提取点击处理函数，避免闭包陷阱
 function createClickHandler(item, div) {
-  return () => {
-    // 滚动到对应元素
+  return (e) => {
+    // 如果点击的是左侧收藏图标区域，只切换收藏，不滚动
+    const rect = div.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+
+    if (clickX < 40) {
+      // 点击左侧 40px 区域，切换收藏
+      toggleBookmark(item.id, div);
+      return;
+    }
+
+    // 否则，滚动到对应元素
     let target = document.getElementById(item.id);
-    
+
     // 修复 Gemini 等动态页面中元素 ID 丢失或 DOM 重建的问题
     if (!target || !document.body.contains(target)) {
       // 尝试强制刷新一次 DOM 解析
       if (currentPlatform === 'chatgpt') parseChatGPT();
       else if (currentPlatform === 'gemini') parseGemini();
-      
+
       // 尝试通过文本内容重新定位元素
       const newItem = tocItems.find(t => t.text === item.text);
       if (newItem) {
