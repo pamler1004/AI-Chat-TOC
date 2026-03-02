@@ -515,12 +515,12 @@ function toggleBookmark(itemId, div) {
 // 提取点击处理函数，避免闭包陷阱
 function createClickHandler(item, div) {
   return (e) => {
-    // 如果点击的是左侧收藏图标区域，只切换收藏，不滚动
+    // 如果点击的是左侧收藏区域，只切换收藏，不滚动
     const rect = div.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
 
-    if (clickX < 40) {
-      // 点击左侧 40px 区域，切换收藏
+    if (clickX < 28) {
+      // 点击左侧 28px 区域，切换收藏
       toggleBookmark(item.id, div);
       return;
     }

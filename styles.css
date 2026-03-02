@@ -92,6 +92,18 @@
   padding-left: 24px; /* 收起时减少左侧 padding */
 }
 
+/* 左侧收藏区域 - 覆盖整个左侧图标区域，便于点击 */
+.ai-toc-item::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 28px; /* 覆盖左侧图标区域 */
+  height: 100%;
+  cursor: pointer;
+  z-index: 1; /* 确保在最上层 */
+}
+
 #ai-toc-container:hover .ai-toc-item,
 #ai-toc-container.pinned .ai-toc-item {
   color: #c5c5d2;
@@ -113,6 +125,7 @@
   color: #5f6368; /* 灰色 */
   transition: all 0.2s;
   opacity: 0.6;
+  z-index: 2; /* 在收藏区域上方 */
 }
 
 /* 展开或固定时，图标左移，显示星星 */
