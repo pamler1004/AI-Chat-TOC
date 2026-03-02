@@ -35,7 +35,11 @@ const CONFIG = {
 // 状态
 let tocItems = [];
 let currentPlatform = 'unknown';
-let bookmarkedItems = new Set(); // 存储已收藏的项的 ID
+// 从 localStorage 读取收藏状态，如果没有则初始化为空 Set
+// 使用新的 stableId 格式（基于内容哈希），确保 DOM 重排后收藏状态不丢失
+let bookmarkedItems = new Set(
+  JSON.parse(localStorage.getItem('bookmarkedItems') || '[]')
+); // 存储已收藏的项的 stableId
 
 // 初始化
 function init() {
@@ -166,19 +170,21 @@ function parseChatGPT() {
     const textDiv = el.innerText || el.textContent;
     const text = textDiv.trim().split('\n')[0]; // 取第一行作为标题
 
-    // 生成唯一 ID
+    // 生成唯一 ID - 优先使用内容哈希，确保稳定性
+    const stableId = 'ai-toc-msg-' + hashCode(text);
     if (!el.id) {
-      el.id = 'ai-toc-msg-' + index;
+      el.id = stableId;
     }
 
     if (text) {
       const newItem = {
         id: el.id,
+        stableId: stableId,
         text: text,
         element: el
       };
-      // 保留收藏状态
-      if (bookmarkedItems.has(el.id)) {
+      // 保留收藏状态 - 使用稳定的 ID 检查
+      if (bookmarkedItems.has(stableId)) {
         newItem.bookmarked = true;
       }
       newItems.push(newItem);
@@ -188,19 +194,30 @@ function parseChatGPT() {
   // 只有当数量变化或内容变化时才更新（简单比较长度）
   // 实际应用中可以做更精细的 diff，这里先简单全量更新
   // 如果没有变化，直接返回，避免触发重绘
-  if (tocItems.length === newItems.length && 
+  if (tocItems.length === newItems.length &&
       tocItems.every((item, i) => item.text === newItems[i].text && item.id === newItems[i].id)) {
     return;
   }
-  
+
   tocItems = newItems;
+}
+
+// 简单的字符串哈希函数，用于生成稳定的 ID
+function hashCode(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash).toString(36); // 转换为字母数字混合的字符串
 }
 
 // 解析 Gemini 页面
 function parseGemini() {
   const selectors = CONFIG.selectors.gemini.userMessageSelectors;
   let elements = [];
-  
+
   // 尝试每一个选择器，直到找到元素
   for (const sel of selectors) {
     const found = document.querySelectorAll(sel);
@@ -217,19 +234,22 @@ function parseGemini() {
     const textDiv = el.innerText || el.textContent;
     // 使用新的清理函数，能够跳过 "你说" 等系统标签
     const text = cleanGeminiTitle(textDiv);
-    
+
+    // 生成唯一 ID - 优先使用内容哈希，确保稳定性
+    const stableId = 'ai-toc-msg-gemini-' + hashCode(text);
     if (!el.id) {
-      el.id = 'ai-toc-msg-gemini-' + index;
+      el.id = stableId;
     }
 
     if (text) {
       const newItem = {
         id: el.id,
+        stableId: stableId,
         text: text,
         element: el
       };
-      // 保留收藏状态
-      if (bookmarkedItems.has(el.id)) {
+      // 保留收藏状态 - 使用稳定的 ID 检查
+      if (bookmarkedItems.has(stableId)) {
         newItem.bookmarked = true;
       }
       newItems.push(newItem);
@@ -237,7 +257,7 @@ function parseGemini() {
   });
 
   // 简单的 Diff 检查
-  if (tocItems.length === newItems.length && 
+  if (tocItems.length === newItems.length &&
       tocItems.every((item, i) => item.text === newItems[i].text && item.id === newItems[i].id)) {
     return;
   }
@@ -461,18 +481,11 @@ function renderTOC() {
   tocItems.forEach((item, index) => {
     let div = existingItems[index];
 
-    // 如果该位置没有元素，或者该位置的元素不是我们要的（这里假设按顺序一一对应）
-    // 为了简单稳健，如果 ID 或 文本 不匹配，就直接替换内容
+    // 如果该位置没有元素，创建新元素
     if (!div) {
       div = document.createElement('div');
       div.className = 'ai-toc-item';
-      div.onclick = createClickHandler(item, div);
       list.appendChild(div);
-    } else {
-      // 检查点击事件是否需要更新（通常闭包不需要，但 ID 可能会变）
-      // 这里为了保险，重新绑定一下 onclick 其实开销很小，或者只在 ID 变了时更新
-      // 但为了简单，如果文本变了，我们更新文本
-      // 如果 ID 变了，我们需要更新点击处理函数
     }
 
     // 更新文本和标题
@@ -481,18 +494,16 @@ function renderTOC() {
       div.title = item.text;
     }
 
-    // 更新收藏状态
-    if (item.bookmarked) {
+    // 更新收藏状态 - 直接从 bookmarkedItems Set 检查，而不是依赖 item.bookmarked
+    const isBookmarked = bookmarkedItems.has(item.stableId);
+    if (isBookmarked) {
       div.classList.add('bookmarked');
     } else {
       div.classList.remove('bookmarked');
     }
 
     // 更新点击事件（确保闭包里的 item 是最新的）
-    // 注意：直接重新赋值 onclick 会覆盖旧的
     div.onclick = createClickHandler(item, div);
-
-    // 标记为已处理
   });
 
   // 3. 删除多余的 DOM 元素
@@ -502,26 +513,28 @@ function renderTOC() {
 }
 
 // 切换收藏状态
-function toggleBookmark(itemId, div) {
-  if (bookmarkedItems.has(itemId)) {
-    bookmarkedItems.delete(itemId);
+function toggleBookmark(stableId, div) {
+  if (bookmarkedItems.has(stableId)) {
+    bookmarkedItems.delete(stableId);
     div.classList.remove('bookmarked');
   } else {
-    bookmarkedItems.add(itemId);
+    bookmarkedItems.add(stableId);
     div.classList.add('bookmarked');
   }
+  // 持久化到 localStorage
+  localStorage.setItem('bookmarkedItems', JSON.stringify([...bookmarkedItems]));
 }
 
 // 提取点击处理函数，避免闭包陷阱
 function createClickHandler(item, div) {
   return (e) => {
-    // 如果点击的是左侧收藏区域，只切换收藏，不滚动
+    // 计算点击位置相对于 div 左侧的距离
     const rect = div.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
 
-    if (clickX < 28) {
-      // 点击左侧 28px 区域，切换收藏
-      toggleBookmark(item.id, div);
+    // 点击左侧 32px 区域（覆盖收藏图标区域），只切换收藏，不滚动
+    if (clickX < 32) {
+      toggleBookmark(item.stableId, div);
       return;
     }
 

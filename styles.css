@@ -98,7 +98,7 @@
   position: absolute;
   left: 0;
   top: 0;
-  width: 28px; /* 覆盖左侧图标区域 */
+  width: 32px; /* 覆盖左侧图标区域，稍微扩大 */
   height: 100%;
   cursor: pointer;
   z-index: 1; /* 确保在最上层 */
@@ -128,6 +128,13 @@
   z-index: 2; /* 在收藏区域上方 */
 }
 
+/* 收起时，已收藏状态 - 黄色圆点 */
+#ai-toc-container:not(:hover):not(.pinned) .ai-toc-item.bookmarked::before {
+  content: '●';
+  color: #fbbf24; /* 黄色 */
+  opacity: 1;
+}
+
 /* 展开或固定时，图标左移，显示星星 */
 #ai-toc-container:hover .ai-toc-item::before,
 #ai-toc-container.pinned .ai-toc-item::before {
@@ -137,19 +144,14 @@
   opacity: 0.4;
 }
 
-/* 展开或固定时，已收藏状态 - 黄色实心星 */
+/* 展开或固定时，已收藏状态 - 黄色实心星 (提高优先级，放在最后) */
 #ai-toc-container:hover .ai-toc-item.bookmarked::before,
 #ai-toc-container.pinned .ai-toc-item.bookmarked::before {
-  content: '★'; /* 实心星 */
-  color: #fbbf24; /* 黄色 */
-  opacity: 1;
-}
-
-/* 收起时，已收藏状态 - 黄色圆点 */
-#ai-toc-container:not(:hover):not(.pinned) .ai-toc-item.bookmarked::before {
-  content: '●';
-  color: #fbbf24;
-  opacity: 1;
+  content: '★' !important; /* 实心星 */
+  color: #fbbf24 !important; /* 黄色 */
+  opacity: 1 !important;
+  left: 8px !important;
+  font-size: 16px !important;
 }
 
 /* 鼠标悬停在左侧收藏区域时，图标高亮 */
