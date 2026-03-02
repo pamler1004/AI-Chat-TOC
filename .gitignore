@@ -1,5 +1,14 @@
+# macOS
 .DS_Store
+
+# Windows
 Thumbs.db
+
+# Logs
 *.log
+
+# Dependencies
 node_modules/
+
+# Editor
 .vscode/
