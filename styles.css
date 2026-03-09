@@ -1,10 +1,11 @@
 /* 主容器样式 */
 #ai-toc-container {
   position: fixed;
-  top: 40vh;
+  top: 50%;
+  transform: translateY(-50%);
   right: 20px; /* 保持固定距离，避免展开时跳动 */
   width: 40px; /* 默认收起宽度 */
-  max-height: 55vh;
+  max-height: 80vh;
   display: flex;
   flex-direction: column;
   background-color: transparent; /* 默认背景透明 */
@@ -27,7 +28,7 @@
 /* 鼠标悬停展开状态，或被固定时 */
 #ai-toc-container:hover,
 #ai-toc-container.pinned {
-  width: 250px;
+  width: 300px;
   background-color: rgba(32, 33, 35, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
