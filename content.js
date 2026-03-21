@@ -1164,8 +1164,11 @@ function exportToImage(selectedIndices, conversationGroups) {
     // 添加 AI 回复
     if (group.aiReplies.length > 0) {
       group.aiReplies.forEach(aiReply => {
+        // aiReply 可能是对象 { text: '...' } 或字符串，需要提取 text 属性
+        let aiTextRaw = typeof aiReply === 'string' ? aiReply : (aiReply.text || '');
+
         // 清理 AI 回复内容，移除过多的换行
-        let aiText = cleanChatText(aiReply);
+        let aiText = cleanChatText(aiTextRaw);
         aiText = aiText.replace(/\n{3,}/g, '\n\n');
 
         html += `
