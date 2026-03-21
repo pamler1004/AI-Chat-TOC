@@ -1118,120 +1118,105 @@ function highlightActive(activeDiv) {
 
 // 导出为图片 - 使用 html2canvas
 function exportToImage(selectedIndices, conversationGroups) {
-  // 动态加载 html2canvas
-  const loadHtml2Canvas = () => {
-    return new Promise((resolve, reject) => {
-      if (window.html2canvas) {
-        resolve(window.html2canvas);
-        return;
-      }
+  // 检查 html2canvas 是否可用
+  if (!window.html2canvas) {
+    alert('图片生成库未加载，请刷新页面重试');
+    return;
+  }
 
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
-      script.onload = () => resolve(window.html2canvas);
-      script.onerror = reject;
-      document.head.appendChild(script);
-    });
-  };
+  // 创建隐藏的渲染容器
+  const container = document.createElement('div');
+  container.id = 'ai-toc-image-export-container';
+  document.body.appendChild(container);
 
-  loadHtml2Canvas().then(() => {
-    // 创建隐藏的渲染容器
-    const container = document.createElement('div');
-    container.id = 'ai-toc-image-export-container';
-    document.body.appendChild(container);
+  // 构建 HTML 内容
+  let html = `<div style="max-width: 720px; margin: 0 auto;">`;
 
-    // 构建 HTML 内容
-    let html = `<div style="max-width: 720px; margin: 0 auto;">`;
+  // 添加标题
+  const pageTitle = document.title || 'AI Chat Export';
+  html += `
+    <div style="text-align: center; margin-bottom: 40px; padding-bottom: 24px; border-bottom: 2px solid #e5e5e5;">
+      <h1 style="font-size: 24px; font-weight: 700; color: #1a1a1a; margin: 0 0 8px 0;">${escapeHtml(pageTitle)}</h1>
+      <p style="font-size: 14px; color: #6b7280; margin: 0;">导出时间：${new Date().toLocaleString()}</p>
+    </div>
+  `;
 
-    // 添加标题
-    const pageTitle = document.title || 'AI Chat Export';
+  // 添加对话内容
+  selectedIndices.forEach(index => {
+    const group = conversationGroups[index];
+    const aiLabel = getAILabel();
+
     html += `
-      <div style="text-align: center; margin-bottom: 40px; padding-bottom: 24px; border-bottom: 2px solid #e5e5e5;">
-        <h1 style="font-size: 24px; font-weight: 700; color: #1a1a1a; margin: 0 0 8px 0;">${escapeHtml(pageTitle)}</h1>
-        <p style="font-size: 14px; color: #6b7280; margin: 0;">导出时间：${new Date().toLocaleString()}</p>
-      </div>
+      <div class="ai-toc-export-image-item">
+        <div class="ai-toc-export-image-user">
+          <div class="ai-toc-export-image-user-icon">🙋</div>
+          <div class="ai-toc-export-image-user-text">${escapeHtml(group.user.text)}</div>
+        </div>
     `;
 
-    // 添加对话内容
-    selectedIndices.forEach(index => {
-      const group = conversationGroups[index];
-      const aiLabel = getAILabel();
+    // 添加 AI 回复
+    if (group.aiReplies.length > 0) {
+      group.aiReplies.forEach(aiReply => {
+        // 清理 AI 回复内容，移除过多的换行
+        let aiText = cleanChatText(aiReply);
+        aiText = aiText.replace(/\n{3,}/g, '\n\n');
 
-      html += `
-        <div class="ai-toc-export-image-item">
-          <div class="ai-toc-export-image-user">
-            <div class="ai-toc-export-image-user-icon">🙋</div>
-            <div class="ai-toc-export-image-user-text">${escapeHtml(group.user.text)}</div>
-          </div>
-      `;
-
-      // 添加 AI 回复
-      if (group.aiReplies.length > 0) {
-        group.aiReplies.forEach(aiReply => {
-          // 清理 AI 回复内容，移除过多的换行
-          let aiText = cleanChatText(aiReply);
-          aiText = aiText.replace(/\n{3,}/g, '\n\n');
-
-          html += `
-            <div class="ai-toc-export-image-ai">
-              <div class="ai-toc-export-image-ai-icon">🤖</div>
-              <div style="flex: 1;">
-                <div class="ai-toc-export-image-ai-label">${aiLabel} 回复</div>
-                <div class="ai-toc-export-image-ai-content">${escapeHtml(aiText)}</div>
-              </div>
+        html += `
+          <div class="ai-toc-export-image-ai">
+            <div class="ai-toc-export-image-ai-icon">🤖</div>
+            <div style="flex: 1;">
+              <div class="ai-toc-export-image-ai-label">${aiLabel} 回复</div>
+              <div class="ai-toc-export-image-ai-content">${escapeHtml(aiText)}</div>
             </div>
-          `;
-        });
-      }
-
-      html += `</div>`;
-    });
+          </div>
+        `;
+      });
+    }
 
     html += `</div>`;
-    container.innerHTML = html;
-
-    // 显示 loading 状态
-    const loadingDiv = document.createElement('div');
-    loadingDiv.id = 'ai-toc-image-loading';
-    loadingDiv.textContent = '正在生成图片...';
-    document.body.appendChild(loadingDiv);
-
-    // 使用 html2canvas 生成图片
-    setTimeout(() => {
-      html2canvas(container, {
-        scale: 2,
-        backgroundColor: '#ffffff',
-        useCORS: true,
-        logging: false,
-        windowWidth: 800,
-        width: 800
-      }).then(canvas => {
-        // 下载图片
-        canvas.toBlob(blob => {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `chat-export-${new Date().toISOString().slice(0,10)}.png`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        });
-
-        // 清理
-        document.body.removeChild(container);
-        document.body.removeChild(loadingDiv);
-      }).catch(err => {
-        console.error('导出图片失败:', err);
-        alert('导出图片失败：' + err.message);
-        document.body.removeChild(container);
-        document.body.removeChild(loadingDiv);
-      });
-    }, 100);
-  }).catch(err => {
-    console.error('加载 html2canvas 失败:', err);
-    alert('加载图片生成库失败，请检查网络连接');
   });
+
+  html += `</div>`;
+  container.innerHTML = html;
+
+  // 显示 loading 状态
+  const loadingDiv = document.createElement('div');
+  loadingDiv.id = 'ai-toc-image-loading';
+  loadingDiv.textContent = '正在生成图片...';
+  document.body.appendChild(loadingDiv);
+
+  // 使用 html2canvas 生成图片
+  setTimeout(() => {
+    html2canvas(container, {
+      scale: 2,
+      backgroundColor: '#ffffff',
+      useCORS: true,
+      logging: false,
+      windowWidth: 800,
+      width: 800
+    }).then(canvas => {
+      // 下载图片
+      canvas.toBlob(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `chat-export-${new Date().toISOString().slice(0,10)}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+
+      // 清理
+      document.body.removeChild(container);
+      document.body.removeChild(loadingDiv);
+    }).catch(err => {
+      console.error('导出图片失败:', err);
+      alert('导出图片失败：' + err.message);
+      document.body.removeChild(container);
+      document.body.removeChild(loadingDiv);
+    });
+  }, 100);
 }
 
 // 启动
