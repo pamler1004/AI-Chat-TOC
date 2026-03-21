@@ -323,13 +323,14 @@
 }
 
 .export-btn-primary {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: #3b82f6;
+  border-color: #3b82f6;
   color: #fff;
 }
 
 .export-btn-primary:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: #2563eb;
+  border-color: #2563eb;
 }
 
 .export-btn-secondary {
