@@ -272,7 +272,7 @@
 
 .export-dialog-content {
   background: rgba(30, 30, 30, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   padding: 20px;
   width: 90%;
@@ -280,7 +280,7 @@
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .export-dialog-header {
@@ -294,42 +294,46 @@
 
 .export-dialog-header h3 {
   margin: 0;
-  font-size: 16px;
-  color: #ececf1;
-  font-weight: 600;
+  font-size: 14px;
+  color: #9b9b9b;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .export-controls {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
 .export-btn {
-  padding: 6px 12px;
-  border: none;
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 6px;
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s;
-  background: rgba(255, 255, 255, 0.1);
-  color: #ececf1;
+  background: rgba(255, 255, 255, 0.05);
+  color: #c5c5d2;
 }
 
 .export-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .export-btn-primary {
-  background: #5c7cfa;
-  color: white;
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
 }
 
 .export-btn-primary:hover {
-  background: #4c6ce9;
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .export-btn-secondary {
-  background: rgba(255, 255, 255, 0.1);
+  background: transparent;
 }
 
 .export-items-container {
@@ -347,24 +351,56 @@
 
 .export-item-label {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
 
 .export-item-label:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* 自定义复选框样式 */
+.export-checkbox {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  margin-right: 12px;
+  position: relative;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.export-checkbox:hover {
+  border-color: rgba(255, 255, 255, 0.5);
   background: rgba(255, 255, 255, 0.1);
 }
 
-.export-checkbox {
-  margin-right: 12px;
-  margin-top: 4px;
-  cursor: pointer;
-  width: 16px;
-  height: 16px;
+.export-checkbox:checked {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.export-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
 }
 
 .export-item-content {
@@ -383,7 +419,7 @@
 
 .export-item-ai {
   font-size: 12px;
-  color: #9b9b9b;
+  color: #5f6368;
 }
 
 .export-dialog-footer {
@@ -395,11 +431,11 @@
 }
 
 .export-count {
-  font-size: 13px;
-  color: #9b9b9b;
+  font-size: 12px;
+  color: #5f6368;
 }
 
 .export-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
