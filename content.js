@@ -802,7 +802,8 @@ function extractClaudeContent(selectedIndices = null) {
       conversationGroups.push(currentGroup);
     }
 
-    // 提取 AI 回复 - 收集所有段落
+    // 提取 AI 回复 - 查找包含 AI 回复的容器
+    // Claude 的 AI 回复容器通常包含 .font-claude-response-body 元素
     const aiParagraphs = child.querySelectorAll('.font-claude-response-body');
     if (aiParagraphs.length > 0 && !userMsg) {
       const firstParagraph = aiParagraphs[0];
@@ -811,16 +812,34 @@ function extractClaudeContent(selectedIndices = null) {
       if (!processedAiContainers.has(containerKey)) {
         processedAiContainers.add(containerKey);
 
-        // 收集所有段落的文本，用换行符连接
-        let aiText = '';
-        const paragraphs = [];
-        aiParagraphs.forEach(p => {
-          const text = p.textContent.trim();
-          if (text && text.length > 5) {
-            paragraphs.push(text);
+        // 获取整个 AI 回复容器的内容
+        // 先尝试找到包含所有段落的父容器
+        let aiContainer = firstParagraph.parentElement;
+        while (aiContainer && aiContainer !== child) {
+          // 检查父容器是否包含更多的 .font-claude-response-body 元素
+          const containerAiParagraphs = aiContainer.querySelectorAll('.font-claude-response-body');
+          if (containerAiParagraphs.length === aiParagraphs.length) {
+            break;
           }
-        });
-        aiText = paragraphs.join('\n\n');
+          aiContainer = aiContainer.parentElement;
+        }
+
+        // 收集容器内的所有文本内容
+        let aiText = '';
+        if (aiContainer && aiContainer !== child) {
+          // 如果有容器，获取容器内的所有可见文本
+          aiText = aiContainer.textContent.trim();
+        } else {
+          // 否则收集所有段落的文本
+          const paragraphs = [];
+          aiParagraphs.forEach(p => {
+            const text = p.textContent.trim();
+            if (text && text.length > 5) {
+              paragraphs.push(text);
+            }
+          });
+          aiText = paragraphs.join('\n\n');
+        }
 
         if (aiText && aiText.length > 10) {
           aiText = cleanChatText(aiText);
