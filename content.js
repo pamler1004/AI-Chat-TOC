@@ -1120,10 +1120,12 @@ function highlightActive(activeDiv) {
 // 导出为图片 - 使用 html2canvas
 function exportToImage(selectedIndices, conversationGroups) {
   console.log('[AI Chat TOC] exportToImage called', { selectedIndices, conversationCount: conversationGroups.length });
-  console.log('[AI Chat TOC] html2canvas available:', !!window.html2canvas);
+  console.log('[AI Chat TOC] html2canvas available:', !!window.html2canvas, 'typeof:', typeof html2canvas);
 
-  // 检查 html2canvas 是否可用
-  if (!window.html2canvas) {
+  // 检查 html2canvas 是否可用 - 同时检查 window.html2canvas 和全局 html2canvas
+  const html2canvasLib = window.html2canvas || (typeof html2canvas !== 'undefined' ? html2canvas : null);
+
+  if (!html2canvasLib) {
     console.error('[AI Chat TOC] html2canvas not loaded');
     alert('图片生成库未加载，请刷新页面重试');
     return;
@@ -1192,7 +1194,7 @@ function exportToImage(selectedIndices, conversationGroups) {
 
   // 使用 html2canvas 生成图片
   setTimeout(() => {
-    html2canvas(container, {
+    html2canvasLib(container, {
       scale: 2,
       backgroundColor: '#ffffff',
       useCORS: true,
