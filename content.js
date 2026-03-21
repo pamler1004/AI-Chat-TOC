@@ -628,6 +628,7 @@ function showExportDialog() {
 
   // 导出为图片
   exportImageBtn.onclick = () => {
+    console.log('[AI Chat TOC] Export image button clicked');
     const selectedIndices = [];
     checkboxes.forEach((cb, index) => {
       if (cb.checked) {
@@ -1118,8 +1119,12 @@ function highlightActive(activeDiv) {
 
 // 导出为图片 - 使用 html2canvas
 function exportToImage(selectedIndices, conversationGroups) {
+  console.log('[AI Chat TOC] exportToImage called', { selectedIndices, conversationCount: conversationGroups.length });
+  console.log('[AI Chat TOC] html2canvas available:', !!window.html2canvas);
+
   // 检查 html2canvas 是否可用
   if (!window.html2canvas) {
+    console.error('[AI Chat TOC] html2canvas not loaded');
     alert('图片生成库未加载，请刷新页面重试');
     return;
   }
