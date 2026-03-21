@@ -500,7 +500,7 @@ function extractChatGPTContent() {
       if (role === 'user') {
         md += `## 🙋 ${text}\n\n`;
       } else {
-        md += `**🤖 AI 回复**:\n\n${text}\n\n`;
+        md += `**🤖 AI 回复**:\n\n${formatForMarkdown(text)}\n\n`;
         md += `---\n\n`; // 每个问答对后加分割线
       }
     });
@@ -568,7 +568,7 @@ function extractGeminiContent() {
       if (isUser) {
         md += `## 🙋 ${text}\n\n`;
       } else {
-        md += `**🤖 AI 回复**:\n\n${text}\n\n`;
+        md += `**🤖 AI 回复**:\n\n${formatForMarkdown(text)}\n\n`;
         md += `---\n\n`;
       }
     });
@@ -641,7 +641,7 @@ function extractClaudeContent() {
           recentTexts.push(normalizedText);
           if (recentTexts.length > 5) recentTexts.shift();
 
-          md += `**🤖 AI 回复**:\n\n${aiText}\n\n`;
+          md += `**🤖 AI 回复**:\n\n${formatForMarkdown(aiText)}\n\n`;
           md += `---\n\n`;
         }
       }
@@ -673,6 +673,33 @@ function cleanChatText(text) {
 
   // 移除末尾的 "ChatGPT can make mistakes..." 等
   return cleaned;
+}
+
+// 格式化文本为 Markdown，确保在 Obsidian 中正确渲染
+function formatForMarkdown(text) {
+  if (!text) return '';
+
+  // 1. 处理代码块 ```code``` → 保持原样
+  let formatted = text.replace(/```([\s\S]*?)```/g, (match, code) => {
+    return '```\n' + code.trim() + '\n```';
+  });
+
+  // 2. 处理行内代码 `code` → 保持原样
+  formatted = formatted.replace(/`([^`]+)`/g, '`$1`');
+
+  // 3. 处理加粗 **text** 或 __text__ → 保持原样
+  formatted = formatted.replace(/(\*\*|__)([^*]+)\1/g, '$1$2$1');
+
+  // 4. 处理列表项 - 或 * 开头，确保前面有空行
+  formatted = formatted.replace(/^[\-\*]\s+/gm, '\n$&');
+
+  // 5. 处理数字列表 1. 2. 开头，确保前面有空行
+  formatted = formatted.replace(/^\d+\.\s+/gm, '\n$&');
+
+  // 6. 确保段落之间有空行（连续两个以上换行压缩为一个空行）
+  formatted = formatted.replace(/\n{3,}/g, '\n\n');
+
+  return formatted;
 }
 
 // 专门用于提取标题的清理函数
