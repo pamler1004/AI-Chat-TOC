@@ -20,7 +20,9 @@
     {
       "matches": [
         "https://chatgpt.com/*",
-        "https://gemini.google.com/*"
+        "https://gemini.google.com/*",
+        "https://claude.com/*",
+        "https://claude.ai/*"
       ],
       "js": ["content.js"],
       "css": ["styles.css"],

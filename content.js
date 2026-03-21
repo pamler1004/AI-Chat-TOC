@@ -561,6 +561,7 @@ function showExportDialog() {
         <span class="export-count">已选择：<span id="export-selected-count">${conversationGroups.length}</span> / ${conversationGroups.length}</span>
         <div class="export-actions">
           <button id="export-cancel" class="export-btn export-btn-secondary">取消</button>
+          <button id="export-image" class="export-btn export-btn-secondary">导出为图片</button>
           <button id="export-confirm" class="export-btn export-btn-primary">导出所选</button>
         </div>
       </div>
@@ -575,6 +576,7 @@ function showExportDialog() {
   const selectInverseBtn = dialog.querySelector('#export-select-inverse');
   const cancelBtn = dialog.querySelector('#export-cancel');
   const confirmBtn = dialog.querySelector('#export-confirm');
+  const exportImageBtn = dialog.querySelector('#export-image');
   const checkboxes = dialog.querySelectorAll('.export-checkbox');
   const selectedCountEl = dialog.querySelector('#export-selected-count');
 
@@ -601,7 +603,7 @@ function showExportDialog() {
     dialog.remove();
   };
 
-  // 确认导出
+  // 确认导出 Markdown
   confirmBtn.onclick = () => {
     const selectedIndices = [];
     checkboxes.forEach((cb, index) => {
@@ -622,6 +624,23 @@ function showExportDialog() {
       // 导出选中的
       exportToMarkdown(selectedIndices);
     }
+  };
+
+  // 导出为图片
+  exportImageBtn.onclick = () => {
+    const selectedIndices = [];
+    checkboxes.forEach((cb, index) => {
+      if (cb.checked) {
+        selectedIndices.push(index);
+      }
+    });
+
+    if (selectedIndices.length === 0) {
+      alert('请至少选择一个对话');
+      return;
+    }
+
+    exportToImage(selectedIndices, conversationGroups);
   };
 
   // 单个复选框变化
@@ -1095,6 +1114,124 @@ function createClickHandler(item, div) {
 function highlightActive(activeDiv) {
   document.querySelectorAll('.ai-toc-item').forEach(el => el.classList.remove('active'));
   activeDiv.classList.add('active');
+}
+
+// 导出为图片 - 使用 html2canvas
+function exportToImage(selectedIndices, conversationGroups) {
+  // 动态加载 html2canvas
+  const loadHtml2Canvas = () => {
+    return new Promise((resolve, reject) => {
+      if (window.html2canvas) {
+        resolve(window.html2canvas);
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+      script.onload = () => resolve(window.html2canvas);
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  };
+
+  loadHtml2Canvas().then(() => {
+    // 创建隐藏的渲染容器
+    const container = document.createElement('div');
+    container.id = 'ai-toc-image-export-container';
+    document.body.appendChild(container);
+
+    // 构建 HTML 内容
+    let html = `<div style="max-width: 720px; margin: 0 auto;">`;
+
+    // 添加标题
+    const pageTitle = document.title || 'AI Chat Export';
+    html += `
+      <div style="text-align: center; margin-bottom: 40px; padding-bottom: 24px; border-bottom: 2px solid #e5e5e5;">
+        <h1 style="font-size: 24px; font-weight: 700; color: #1a1a1a; margin: 0 0 8px 0;">${escapeHtml(pageTitle)}</h1>
+        <p style="font-size: 14px; color: #6b7280; margin: 0;">导出时间：${new Date().toLocaleString()}</p>
+      </div>
+    `;
+
+    // 添加对话内容
+    selectedIndices.forEach(index => {
+      const group = conversationGroups[index];
+      const aiLabel = getAILabel();
+
+      html += `
+        <div class="ai-toc-export-image-item">
+          <div class="ai-toc-export-image-user">
+            <div class="ai-toc-export-image-user-icon">🙋</div>
+            <div class="ai-toc-export-image-user-text">${escapeHtml(group.user.text)}</div>
+          </div>
+      `;
+
+      // 添加 AI 回复
+      if (group.aiReplies.length > 0) {
+        group.aiReplies.forEach(aiReply => {
+          // 清理 AI 回复内容，移除过多的换行
+          let aiText = cleanChatText(aiReply);
+          aiText = aiText.replace(/\n{3,}/g, '\n\n');
+
+          html += `
+            <div class="ai-toc-export-image-ai">
+              <div class="ai-toc-export-image-ai-icon">🤖</div>
+              <div style="flex: 1;">
+                <div class="ai-toc-export-image-ai-label">${aiLabel} 回复</div>
+                <div class="ai-toc-export-image-ai-content">${escapeHtml(aiText)}</div>
+              </div>
+            </div>
+          `;
+        });
+      }
+
+      html += `</div>`;
+    });
+
+    html += `</div>`;
+    container.innerHTML = html;
+
+    // 显示 loading 状态
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = 'ai-toc-image-loading';
+    loadingDiv.textContent = '正在生成图片...';
+    document.body.appendChild(loadingDiv);
+
+    // 使用 html2canvas 生成图片
+    setTimeout(() => {
+      html2canvas(container, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        logging: false,
+        windowWidth: 800,
+        width: 800
+      }).then(canvas => {
+        // 下载图片
+        canvas.toBlob(blob => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `chat-export-${new Date().toISOString().slice(0,10)}.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        });
+
+        // 清理
+        document.body.removeChild(container);
+        document.body.removeChild(loadingDiv);
+      }).catch(err => {
+        console.error('导出图片失败:', err);
+        alert('导出图片失败：' + err.message);
+        document.body.removeChild(container);
+        document.body.removeChild(loadingDiv);
+      });
+    }, 100);
+  }).catch(err => {
+    console.error('加载 html2canvas 失败:', err);
+    alert('加载图片生成库失败，请检查网络连接');
+  });
 }
 
 // 启动

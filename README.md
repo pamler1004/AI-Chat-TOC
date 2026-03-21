@@ -1,9 +1,9 @@
-# AI Chat TOC (AI 对话目录) v1.4
+# AI Chat TOC (AI 对话目录) v1.5
 
 <div align="center">
   <img src="icon.png" alt="Logo" width="128" height="128">
 
-  <p>为 ChatGPT、Google Gemini 和 Claude 等 AI 对话页面添加右侧悬浮目录导航，支持 Markdown 导出。</p>
+  <p>为 ChatGPT、Google Gemini 和 Claude 等 AI 对话页面添加右侧悬浮目录导航，支持 Markdown 导出和图片导出。</p>
 </div>
 
 ## ✨ 功能特性
@@ -14,7 +14,8 @@
   - [x] Google Gemini (gemini.google.com)
   - [x] Anthropic Claude (claude.com, claude.ai)
 - **📤 对话导出**：
-  - **选择导出**：支持选择性地导出对话，可单选、多选、全选或反选。
+  - **Markdown 导出**：选择导出对话，可单选、多选、全选或反选。
+  - **图片导出**：一键导出对话为精美图片，适合分享和收藏。
   - **AI 回复预览**：选择对话框中显示每条对话的 AI 回复预览。
   - **Obsidian 适配**：优化的 Markdown 格式，完美支持代码块、列表、加粗等格式。
   - **完整内容**：自动收集 AI 回复的所有段落，避免内容丢失。
@@ -30,6 +31,7 @@
   - 简洁的 SVG 图标。
   - 滚动条美化。
   - 统一的 UI 风格，跨平台一致。
+  - 图片导出采用简约现代风格，适合技术内容和专业分享。
 
 ## 📦 安装说明
 
