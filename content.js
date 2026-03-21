@@ -561,6 +561,7 @@ function showExportDialog() {
         <span class="export-count">已选择：<span id="export-selected-count">${conversationGroups.length}</span> / ${conversationGroups.length}</span>
         <div class="export-actions">
           <button id="export-cancel" class="export-btn export-btn-secondary">取消</button>
+          <button id="export-preview" class="export-btn export-btn-secondary">预览</button>
           <button id="export-image" class="export-btn export-btn-secondary">导出为图片</button>
           <button id="export-confirm" class="export-btn export-btn-primary">导出所选</button>
         </div>
@@ -577,6 +578,7 @@ function showExportDialog() {
   const cancelBtn = dialog.querySelector('#export-cancel');
   const confirmBtn = dialog.querySelector('#export-confirm');
   const exportImageBtn = dialog.querySelector('#export-image');
+  const previewBtn = dialog.querySelector('#export-preview');
   const checkboxes = dialog.querySelectorAll('.export-checkbox');
   const selectedCountEl = dialog.querySelector('#export-selected-count');
 
@@ -601,6 +603,11 @@ function showExportDialog() {
   // 取消
   cancelBtn.onclick = () => {
     dialog.remove();
+  };
+
+  // 预览
+  previewBtn.onclick = () => {
+    showImagePreview(selectedIndices, conversationGroups);
   };
 
   // 确认导出 Markdown
@@ -641,6 +648,8 @@ function showExportDialog() {
       return;
     }
 
+    // 关闭对话框，然后导出
+    dialog.remove();
     exportToImage(selectedIndices, conversationGroups);
   };
 
@@ -1131,10 +1140,28 @@ function exportToImage(selectedIndices, conversationGroups) {
     return;
   }
 
-  // 创建隐藏的渲染容器
+  // 创建隐藏的渲染容器 - 使用 Shadow DOM 隔离样式
+  const wrapper = document.createElement('div');
+  wrapper.style.position = 'absolute';
+  wrapper.style.left = '-9999px';
+  wrapper.style.top = '0';
+  wrapper.style.width = '800px';
+  wrapper.style.zIndex = '-9999';
+  document.body.appendChild(wrapper);
+
   const container = document.createElement('div');
   container.id = 'ai-toc-image-export-container';
-  document.body.appendChild(container);
+  // 强制重置所有继承的样式
+  container.style.all = 'initial';
+  container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+  container.style.fontSize = '16px';
+  container.style.lineHeight = '1.5';
+  container.style.color = '#1a1a1a';
+  container.style.backgroundColor = '#ffffff';
+  container.style.width = '800px';
+  container.style.padding = '40px';
+  container.style.boxSizing = 'border-box';
+  wrapper.appendChild(container);
 
   // 构建 HTML 内容
   let html = `<div style="max-width: 720px; margin: 0 auto;">`;
@@ -1143,8 +1170,8 @@ function exportToImage(selectedIndices, conversationGroups) {
   const pageTitle = document.title || 'AI Chat Export';
   html += `
     <div style="text-align: center; margin-bottom: 40px; padding-bottom: 24px; border-bottom: 2px solid #e5e5e5;">
-      <h1 style="font-size: 24px; font-weight: 700; color: #1a1a1a; margin: 0 0 8px 0;">${escapeHtml(pageTitle)}</h1>
-      <p style="font-size: 14px; color: #6b7280; margin: 0;">导出时间：${new Date().toLocaleString()}</p>
+      <h1 style="font-size: 24px; font-weight: 700; color: #1a1a1a; margin: 0 0 8px 0; font-family: inherit;">${escapeHtml(pageTitle)}</h1>
+      <p style="font-size: 14px; color: #6b7280; margin: 0; font-family: inherit;">导出时间：${new Date().toLocaleString()}</p>
     </div>
   `;
 
@@ -1154,10 +1181,10 @@ function exportToImage(selectedIndices, conversationGroups) {
     const aiLabel = getAILabel();
 
     html += `
-      <div class="ai-toc-export-image-item">
-        <div class="ai-toc-export-image-user">
-          <div class="ai-toc-export-image-user-icon">🙋</div>
-          <div class="ai-toc-export-image-user-text">${escapeHtml(group.user.text)}</div>
+      <div style="background: #f9f9f9; border-radius: 12px; padding: 24px; margin-bottom: 20px; border: 1px solid #e5e5e5;">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #e5e5e5;">
+          <div style="width: 32px; height: 32px; border-radius: 50%; background: #3b82f6; display: flex; align-items: center; justify-content: center; color: white; font-size: 16px; flex-shrink: 0;">🙋</div>
+          <div style="font-size: 15px; font-weight: 600; color: #1a1a1a; line-height: 1.4; font-family: inherit;">${escapeHtml(group.user.text)}</div>
         </div>
     `;
 
@@ -1172,11 +1199,11 @@ function exportToImage(selectedIndices, conversationGroups) {
         aiText = aiText.replace(/\n{3,}/g, '\n\n');
 
         html += `
-          <div class="ai-toc-export-image-ai">
-            <div class="ai-toc-export-image-ai-icon">🤖</div>
+          <div style="display: flex; gap: 12px; padding-left: 44px; margin-top: 16px;">
+            <div style="width: 28px; height: 28px; border-radius: 50%; background: #10b981; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; flex-shrink: 0; margin-top: 2px;">🤖</div>
             <div style="flex: 1;">
-              <div class="ai-toc-export-image-ai-label">${aiLabel} 回复</div>
-              <div class="ai-toc-export-image-ai-content">${escapeHtml(aiText)}</div>
+              <div style="font-size: 12px; color: #6b7280; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; font-family: inherit;">${aiLabel} 回复</div>
+              <div style="font-size: 14px; color: #374151; line-height: 1.6; white-space: pre-wrap; word-break: break-word; font-family: inherit;">${escapeHtml(aiText)}</div>
             </div>
           </div>
         `;
@@ -1192,7 +1219,7 @@ function exportToImage(selectedIndices, conversationGroups) {
   // 显示 loading 状态
   const loadingDiv = document.createElement('div');
   loadingDiv.id = 'ai-toc-image-loading';
-  loadingDiv.textContent = '正在生成图片...';
+  loadingDiv.innerHTML = '<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.8);color:white;padding:20px 40px;border-radius:12px;font-size:14px;z-index:99999;">正在生成图片...</div>';
   document.body.appendChild(loadingDiv);
 
   // 使用 html2canvas 生成图片
@@ -1203,7 +1230,8 @@ function exportToImage(selectedIndices, conversationGroups) {
       useCORS: true,
       logging: false,
       windowWidth: 800,
-      width: 800
+      width: 800,
+      ignoreElements: (el) => el.id === 'ai-toc-image-loading'
     }).then(canvas => {
       // 下载图片
       canvas.toBlob(blob => {
@@ -1218,15 +1246,103 @@ function exportToImage(selectedIndices, conversationGroups) {
       });
 
       // 清理
-      document.body.removeChild(container);
       document.body.removeChild(loadingDiv);
+      document.body.removeChild(wrapper);
     }).catch(err => {
       console.error('导出图片失败:', err);
       alert('导出图片失败：' + err.message);
-      document.body.removeChild(container);
       document.body.removeChild(loadingDiv);
+      document.body.removeChild(wrapper);
     });
   }, 100);
+}
+
+// 显示图片预览
+function showImagePreview(selectedIndices, conversationGroups) {
+  // 获取选中的索引
+  const indices = selectedIndices || [];
+  if (indices.length === 0) {
+    alert('请至少选择一个对话');
+    return;
+  }
+
+  // 创建预览容器
+  const preview = document.createElement('div');
+  preview.id = 'ai-toc-image-preview';
+  preview.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:99998;display:flex;align-items:center;justify-content:center;';
+
+  const previewContent = document.createElement('div');
+  previewContent.style.cssText = 'background:#fff;border-radius:12px;max-width:90%;max-height:90%;overflow:auto;box-shadow:0 4px 24px rgba(0,0,0,0.2);';
+
+  // 构建预览内容 - 与导出图片相同的样式
+  const aiLabel = getAILabel();
+  let html = `<div style="width:800px;padding:40px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;">`;
+
+  // 标题
+  const pageTitle = document.title || 'AI Chat Export';
+  html += `
+    <div style="text-align:center;margin-bottom:40px;padding-bottom:24px;border-bottom:2px solid #e5e5e5;">
+      <h1 style="font-size:24px;font-weight:700;color:#1a1a1a;margin:0 0 8px 0;">${escapeHtml(pageTitle)}</h1>
+      <p style="font-size:14px;color:#6b7280;margin:0;">导出时间：${new Date().toLocaleString()}</p>
+    </div>
+  `;
+
+  // 对话内容
+  selectedIndices.forEach(index => {
+    const group = conversationGroups[index];
+
+    html += `
+      <div style="background:#f9f9f9;border-radius:12px;padding:24px;margin-bottom:20px;border:1px solid #e5e5e5;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #e5e5e5;">
+          <div style="width:32px;height:32px;border-radius:50%;background:#3b82f6;display:flex;align-items:center;justify-content:center;color:white;font-size:16px;flex-shrink:0;">🙋</div>
+          <div style="font-size:15px;font-weight:600;color:#1a1a1a;line-height:1.4;">${escapeHtml(group.user.text)}</div>
+        </div>
+    `;
+
+    if (group.aiReplies.length > 0) {
+      group.aiReplies.forEach(aiReply => {
+        let aiTextRaw = typeof aiReply === 'string' ? aiReply : (aiReply.text || '');
+        let aiText = cleanChatText(aiTextRaw);
+        aiText = aiText.replace(/\n{3,}/g, '\n\n');
+
+        html += `
+          <div style="display:flex;gap:12px;padding-left:44px;margin-top:16px;">
+            <div style="width:28px;height:28px;border-radius:50%;background:#10b981;display:flex;align-items:center;justify-content:center;color:white;font-size:14px;flex-shrink:0;margin-top:2px;">🤖</div>
+            <div style="flex:1;">
+              <div style="font-size:12px;color:#6b7280;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">${aiLabel} 回复</div>
+              <div style="font-size:14px;color:#374151;line-height:1.6;white-space:pre-wrap;word-break:break-word;">${escapeHtml(aiText)}</div>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    html += `</div>`;
+  });
+
+  html += `</div>`;
+
+  previewContent.innerHTML = html;
+  preview.appendChild(previewContent);
+
+  // 关闭按钮
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '关闭预览';
+  closeBtn.style.cssText = 'position:absolute;top:20px;right:20px;padding:12px 24px;background:#3b82f6;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer;';
+  closeBtn.onclick = () => preview.remove();
+  preview.appendChild(closeBtn);
+
+  // 导出按钮
+  const exportBtn = document.createElement('button');
+  exportBtn.textContent = '导出图片';
+  exportBtn.style.cssText = 'position:absolute;top:20px;right:140px;padding:12px 24px;background:#10b981;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer;';
+  exportBtn.onclick = () => {
+    preview.remove();
+    exportToImage(selectedIndices, conversationGroups);
+  };
+  preview.appendChild(exportBtn);
+
+  document.body.appendChild(preview);
 }
 
 // 启动
