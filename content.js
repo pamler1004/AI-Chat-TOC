@@ -526,13 +526,17 @@ function showExportDialog() {
   conversationGroups.forEach((group, groupIndex) => {
     const userText = group.user.text.substring(0, 80) + (group.user.text.length > 80 ? '...' : '');
     const aiCount = group.aiReplies.length;
+    // 获取第一条 AI 回复的前 60 个字符作为预览
+    const aiPreview = aiCount > 0
+      ? group.aiReplies[0].text.substring(0, 60) + (group.aiReplies[0].text.length > 60 ? '...' : '')
+      : '暂无回复';
     itemsHtml += `
       <div class="export-item" data-group-index="${groupIndex}">
         <label class="export-item-label">
           <input type="checkbox" class="export-checkbox" data-group-index="${groupIndex}" checked>
           <div class="export-item-content">
             <div class="export-item-user">🙋 ${escapeHtml(userText)}</div>
-            <div class="export-item-ai">🤖 AI 回复 × ${aiCount}</div>
+            <div class="export-item-ai">🤖 AI 回复 × ${aiCount} · ${escapeHtml(aiPreview)}</div>
           </div>
         </label>
       </div>
