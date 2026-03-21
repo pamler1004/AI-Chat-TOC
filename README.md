@@ -12,6 +12,7 @@
 - **🤖 多平台支持**：
   - [x] ChatGPT (chatgpt.com)
   - [x] Google Gemini (gemini.google.com)
+  - [x] Anthropic Claude (claude.com, claude.ai)
 - **📤 对话导出**：支持将完整对话导出为 Markdown 格式，结构清晰，自动去重，完美保留对话逻辑。
 - **👀 智能交互**：
   - **自动收起/展开**：默认收起，鼠标悬停自动展开，不遮挡视线。

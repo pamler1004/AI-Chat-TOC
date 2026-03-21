@@ -29,21 +29,27 @@
 #ai-toc-container:hover,
 #ai-toc-container.pinned {
   width: 300px;
-  background-color: rgba(32, 33, 35, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   padding: 12px;
-  transition-duration: 0.25s; /* 展开稍微慢一点点，显得自然 */
+  transition-duration: 0.25s;
+  overflow: hidden;
 }
 
 /* 列表容器 - 只有这部分滚动 */
 #ai-toc-list {
   overflow-y: auto;
   overflow-x: hidden;
-  /* 滚动条样式 */
+  flex: 1;
+  min-height: 0;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-  padding-right: 4px; /* 避免滚动条遮挡 */
+  padding-right: 4px;
+  /* 阻止滚动穿透到父元素 */
+  overscroll-behavior: contain;
 }
 
 /* 隐藏时 */
@@ -67,6 +73,7 @@
   opacity: 0; /* 默认隐藏 */
   transition: opacity 0.2s ease;
   white-space: nowrap;
+  flex-shrink: 0; /* header 不收缩 */
 }
 
 #ai-toc-container:hover .ai-toc-header,
@@ -88,13 +95,30 @@
   transition: all 0.2s;
 }
 
+/* 用户消息 - 正常显示 */
+.ai-toc-item.user {
+  /* 用户消息样式 */
+}
+
+/* AI 回复 - 缩进一级，显示层级关系 */
+.ai-toc-item.ai {
+  padding-left: 52px; /* 额外缩进 16px */
+  font-size: 13px; /* 稍微小一点 */
+  opacity: 0.85; /* 稍微透明一点 */
+}
+
 /* 容器收起时的列表项 */
 #ai-toc-container:not(:hover):not(.pinned) .ai-toc-item {
   padding-left: 24px; /* 收起时减少左侧 padding */
 }
 
-/* 左侧收藏区域 - 覆盖整个左侧图标区域，便于点击 */
-.ai-toc-item::after {
+/* 容器收起时的 AI 回复 */
+#ai-toc-container:not(:hover):not(.pinned) .ai-toc-item.ai {
+  padding-left: 28px; /* 收起时 AI 回复稍微缩进 */
+}
+
+/* 左侧收藏区域 - 覆盖整个左侧图标区域，便于点击（只对用户消息） */
+.ai-toc-item.user::after {
   content: '';
   position: absolute;
   left: 0;
@@ -103,6 +127,18 @@
   height: 100%;
   cursor: pointer;
   z-index: 1; /* 确保在最上层 */
+}
+
+/* AI 回复没有收藏功能 */
+.ai-toc-item.ai::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  z-index: 1;
 }
 
 #ai-toc-container:hover .ai-toc-item,
@@ -115,8 +151,8 @@
   color: #fff !important;
 }
 
-/* 收藏图标 - 在左侧 */
-.ai-toc-item::before {
+/* 收藏图标 - 在左侧（只对用户消息） */
+.ai-toc-item.user::before {
   content: '●'; /* 圆点，收起状态 */
   position: absolute;
   left: 14px; /* 收起时居中 */
@@ -129,25 +165,45 @@
   z-index: 2; /* 在收藏区域上方 */
 }
 
+/* AI 回复没有收藏图标 */
+.ai-toc-item.ai::before {
+  content: '└'; /* 使用角落符号表示从属 */
+  position: absolute;
+  left: 36px; /* 缩进位置 */
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: #5f6368;
+  opacity: 0.5;
+  z-index: 2;
+}
+
 /* 收起时，已收藏状态 - 黄色圆点 */
-#ai-toc-container:not(:hover):not(.pinned) .ai-toc-item.bookmarked::before {
+#ai-toc-container:not(:hover):not(.pinned) .ai-toc-item.user.bookmarked::before {
   content: '●';
   color: #fbbf24; /* 黄色 */
   opacity: 1;
 }
 
-/* 展开或固定时，图标左移，显示星星 */
-#ai-toc-container:hover .ai-toc-item::before,
-#ai-toc-container.pinned .ai-toc-item::before {
+/* 展开或固定时，用户消息图标左移，显示星星 */
+#ai-toc-container:hover .ai-toc-item.user::before,
+#ai-toc-container.pinned .ai-toc-item.user::before {
   content: '☆'; /* 空心星 */
   left: 8px; /* 对齐左边 padding */
   font-size: 16px;
   opacity: 0.4;
 }
 
+/* AI 回复的角落符号在展开时也左移 */
+#ai-toc-container:hover .ai-toc-item.ai::before,
+#ai-toc-container.pinned .ai-toc-item.ai::before {
+  left: 20px;
+  opacity: 0.3;
+}
+
 /* 展开或固定时，已收藏状态 - 黄色实心星 (提高优先级，放在最后) */
-#ai-toc-container:hover .ai-toc-item.bookmarked::before,
-#ai-toc-container.pinned .ai-toc-item.bookmarked::before {
+#ai-toc-container:hover .ai-toc-item.user.bookmarked::before,
+#ai-toc-container.pinned .ai-toc-item.user.bookmarked::before {
   content: '★' !important; /* 实心星 */
   color: #fbbf24 !important; /* 黄色 */
   opacity: 1 !important;
@@ -155,13 +211,18 @@
   font-size: 16px !important;
 }
 
-/* 鼠标悬停在左侧收藏区域时，图标高亮 */
-.ai-toc-item:hover::before {
+/* 鼠标悬停在左侧收藏区域时，图标高亮（只对用户消息） */
+.ai-toc-item.user:hover::before {
   opacity: 0.8;
 }
 
-.ai-toc-item.bookmarked:hover::before {
+.ai-toc-item.user.bookmarked:hover::before {
   opacity: 1;
+}
+
+/* AI 回复悬停时角落符号高亮 */
+.ai-toc-item.ai:hover::before {
+  opacity: 0.6;
 }
 
 /* 导出和固定按钮 */
