@@ -498,12 +498,9 @@ function extractChatGPTContent() {
       if (!text.trim()) return;
 
       if (role === 'user') {
-        md += `## 🙋 ${text.substring(0, 50)}${text.length > 50 ? '...' : ''}\n\n`;
-        md += `**User:**\n\n${text}\n\n`;
+        md += `## 🙋 ${text}\n\n`;
       } else {
-        // 给 AI 的回答加上引用块，增强区分度
-        const quotedText = text.split('\n').map(line => `> ${line}`).join('\n');
-        md += `**AI:**\n\n${quotedText}\n\n`;
+        md += `**🤖 AI 回复**:\n\n${text}\n\n`;
         md += `---\n\n`; // 每个问答对后加分割线
       }
     });
@@ -569,15 +566,9 @@ function extractGeminiContent() {
       if (recentTexts.length > 5) recentTexts.shift();
 
       if (isUser) {
-        const title = text.length > 50 ? text.substring(0, 50) + '...' : text;
-        md += `## 🙋 ${title}\n\n`;
-
-        if (text.length > 50 || text.includes('\n')) {
-          md += `**User:**\n\n${text}\n\n`;
-        }
+        md += `## 🙋 ${text}\n\n`;
       } else {
-        const quotedText = text.split('\n').map(line => `> ${line}`).join('\n');
-        md += `**AI:**\n\n${quotedText}\n\n`;
+        md += `**🤖 AI 回复**:\n\n${text}\n\n`;
         md += `---\n\n`;
       }
     });
@@ -619,12 +610,7 @@ function extractClaudeContent() {
       recentTexts.push(normalizedText);
       if (recentTexts.length > 5) recentTexts.shift();
 
-      const title = text.length > 50 ? text.substring(0, 50) + '...' : text;
-      md += `## 🙋 ${title}\n\n`;
-
-      if (text.length > 50 || text.includes('\n')) {
-        md += `**User:**\n\n${text}\n\n`;
-      }
+      md += `## 🙋 ${text}\n\n`;
     }
 
     // 提取 AI 回复 - 收集所有段落
@@ -636,16 +622,16 @@ function extractClaudeContent() {
       if (!processedAiContainers.has(containerKey)) {
         processedAiContainers.add(containerKey);
 
-        // 收集所有段落的文本
+        // 收集所有段落的文本，用换行符连接
         let aiText = '';
+        const paragraphs = [];
         aiParagraphs.forEach(p => {
           const text = p.textContent.trim();
           if (text && text.length > 5) {
-            if (!aiText) {
-              aiText = text; // 取第一段作为标题
-            }
+            paragraphs.push(text);
           }
         });
+        aiText = paragraphs.join('\n\n');
 
         if (aiText && aiText.length > 10) {
           aiText = cleanChatText(aiText);
@@ -655,8 +641,7 @@ function extractClaudeContent() {
           recentTexts.push(normalizedText);
           if (recentTexts.length > 5) recentTexts.shift();
 
-          const quotedText = aiText.split('\n').map(line => `> ${line}`).join('\n');
-          md += `**AI:**\n\n${quotedText}\n\n`;
+          md += `**🤖 AI 回复**:\n\n${aiText}\n\n`;
           md += `---\n\n`;
         }
       }
