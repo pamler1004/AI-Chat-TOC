@@ -100,8 +100,8 @@ function createContainer() {
     </div>
   `;
 
-  // 导出功能
-  header.querySelector('.ai-toc-export').onclick = exportToMarkdown;
+  // 导出功能 - 修改为先显示选择对话框
+  header.querySelector('.ai-toc-export').onclick = showExportDialog;
 
   // 固定功能
   const pinBtn = header.querySelector('.ai-toc-pin');
@@ -460,7 +460,7 @@ function parseClaude() {
 }
 
 // 导出为 Markdown
-function exportToMarkdown() {
+function exportToMarkdown(selectedItems = null) {
   let markdownContent = '';
 
   // 添加标题
@@ -469,40 +469,210 @@ function exportToMarkdown() {
   markdownContent += `> 导出时间：${new Date().toLocaleString()}\n\n---\n\n`;
 
   if (currentPlatform === 'chatgpt') {
-    markdownContent += extractChatGPTContent();
+    markdownContent += extractChatGPTContent(selectedItems);
   } else if (currentPlatform === 'gemini') {
-    markdownContent += extractGeminiContent();
+    markdownContent += extractGeminiContent(selectedItems);
   } else if (currentPlatform === 'claude') {
-    markdownContent += extractClaudeContent();
+    markdownContent += extractClaudeContent(selectedItems);
   } else {
     markdownContent += '> 无法识别当前平台，导出失败。\n';
   }
 
   downloadFile(markdownContent, `chat-export-${new Date().toISOString().slice(0,10)}.md`);
+
+  // 导出后清理对话框
+  const existingDialog = document.getElementById('ai-toc-export-dialog');
+  if (existingDialog) {
+    existingDialog.remove();
+  }
+}
+
+// 显示导出选择对话框
+function showExportDialog() {
+  // 如果已存在对话框，先移除
+  const existingDialog = document.getElementById('ai-toc-export-dialog');
+  if (existingDialog) {
+    existingDialog.remove();
+  }
+
+  // 创建对话框容器
+  const dialog = document.createElement('div');
+  dialog.id = 'ai-toc-export-dialog';
+
+  // 使用当前的 tocItems 生成选项
+  const conversations = tocItems.map((item, index) => ({
+    index,
+    id: item.stableId,
+    text: item.text,
+    type: item.type,
+    elementId: item.id
+  }));
+
+  // 构建对话列表（按用户提问分组）
+  const conversationGroups = [];
+  let currentGroup = null;
+
+  conversations.forEach(conv => {
+    if (conv.type === 'user') {
+      currentGroup = { user: conv, aiReplies: [] };
+      conversationGroups.push(currentGroup);
+    } else if (currentGroup) {
+      currentGroup.aiReplies.push(conv);
+    }
+  });
+
+  // 生成对话框 HTML
+  let itemsHtml = '';
+  conversationGroups.forEach((group, groupIndex) => {
+    const userText = group.user.text.substring(0, 80) + (group.user.text.length > 80 ? '...' : '');
+    const aiCount = group.aiReplies.length;
+    itemsHtml += `
+      <div class="export-item" data-group-index="${groupIndex}">
+        <label class="export-item-label">
+          <input type="checkbox" class="export-checkbox" data-group-index="${groupIndex}" checked>
+          <div class="export-item-content">
+            <div class="export-item-user">🙋 ${escapeHtml(userText)}</div>
+            <div class="export-item-ai">🤖 AI 回复 × ${aiCount}</div>
+          </div>
+        </label>
+      </div>
+    `;
+  });
+
+  dialog.innerHTML = `
+    <div class="export-dialog-content">
+      <div class="export-dialog-header">
+        <h3>选择要导出的对话</h3>
+        <div class="export-controls">
+          <button id="export-select-all" class="export-btn">全选</button>
+          <button id="export-select-none" class="export-btn">取消全选</button>
+          <button id="export-select-inverse" class="export-btn">反选</button>
+        </div>
+      </div>
+      <div class="export-items-container">
+        ${itemsHtml}
+      </div>
+      <div class="export-dialog-footer">
+        <span class="export-count">已选择：<span id="export-selected-count">${conversationGroups.length}</span> / ${conversationGroups.length}</span>
+        <div class="export-actions">
+          <button id="export-cancel" class="export-btn export-btn-secondary">取消</button>
+          <button id="export-confirm" class="export-btn export-btn-primary">导出所选</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(dialog);
+
+  // 绑定事件
+  const selectAllBtn = dialog.querySelector('#export-select-all');
+  const selectNoneBtn = dialog.querySelector('#export-select-none');
+  const selectInverseBtn = dialog.querySelector('#export-select-inverse');
+  const cancelBtn = dialog.querySelector('#export-cancel');
+  const confirmBtn = dialog.querySelector('#export-confirm');
+  const checkboxes = dialog.querySelectorAll('.export-checkbox');
+  const selectedCountEl = dialog.querySelector('#export-selected-count');
+
+  // 全选
+  selectAllBtn.onclick = () => {
+    checkboxes.forEach(cb => cb.checked = true);
+    updateSelectedCount();
+  };
+
+  // 取消全选
+  selectNoneBtn.onclick = () => {
+    checkboxes.forEach(cb => cb.checked = false);
+    updateSelectedCount();
+  };
+
+  // 反选
+  selectInverseBtn.onclick = () => {
+    checkboxes.forEach(cb => cb.checked = !cb.checked);
+    updateSelectedCount();
+  };
+
+  // 取消
+  cancelBtn.onclick = () => {
+    dialog.remove();
+  };
+
+  // 确认导出
+  confirmBtn.onclick = () => {
+    const selectedIndices = [];
+    checkboxes.forEach((cb, index) => {
+      if (cb.checked) {
+        selectedIndices.push(index);
+      }
+    });
+
+    if (selectedIndices.length === 0) {
+      alert('请至少选择一个对话');
+      return;
+    }
+
+    if (selectedIndices.length === conversationGroups.length) {
+      // 全选，直接导出所有
+      exportToMarkdown();
+    } else {
+      // 导出选中的
+      exportToMarkdown(selectedIndices);
+    }
+  };
+
+  // 单个复选框变化
+  checkboxes.forEach(cb => {
+    cb.onchange = updateSelectedCount;
+  });
+
+  // 更新选中数量
+  function updateSelectedCount() {
+    const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+    selectedCountEl.textContent = checkedCount;
+  }
+}
+
+// HTML 转义函数
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 // 提取 ChatGPT 内容 (问答对)
-function extractChatGPTContent() {
+function extractChatGPTContent(selectedIndices = null) {
   let md = '';
   // 策略：不再依赖 article，直接查找所有消息元素
   const messages = document.querySelectorAll('[data-message-author-role]');
 
   if (messages.length > 0) {
+    // 按对话分组（用户消息 + 后续 AI 回复）
+    const conversationGroups = [];
+    let currentGroup = null;
+
     messages.forEach(msg => {
       const role = msg.getAttribute('data-message-author-role');
-
       let text = msg.innerText || msg.textContent;
       text = cleanChatText(text);
 
-      // 如果内容为空（可能是隐藏元素或加载中），跳过
       if (!text.trim()) return;
 
       if (role === 'user') {
-        md += `## 🙋 ${text}\n\n`;
-      } else {
-        md += `**🤖 AI 回复**:\n\n${formatForMarkdown(text)}\n\n`;
-        md += `---\n\n`; // 每个问答对后加分割线
+        currentGroup = { user: { text }, aiReplies: [] };
+        conversationGroups.push(currentGroup);
+      } else if (currentGroup) {
+        currentGroup.aiReplies.push(text);
       }
+    });
+
+    // 根据选中的索引导出
+    conversationGroups.forEach((group, index) => {
+      if (selectedIndices !== null && !selectedIndices.includes(index)) return;
+
+      md += `## 🙋 ${group.user.text}\n\n`;
+      group.aiReplies.forEach(aiText => {
+        md += `**🤖 AI 回复**:\n\n${formatForMarkdown(aiText)}\n\n`;
+        md += `---\n\n`;
+      });
     });
   } else {
     // 兜底策略：使用之前的选择器
@@ -516,7 +686,7 @@ function extractChatGPTContent() {
 }
 
 // 提取 Gemini 内容
-function extractGeminiContent() {
+function extractGeminiContent(selectedIndices = null) {
   let md = '';
 
   const userSelector = CONFIG.selectors.gemini.userMessage;
@@ -541,38 +711,53 @@ function extractGeminiContent() {
     }
   });
 
+  // 按对话分组
+  const conversationGroups = [];
+  let currentGroup = null;
+
   const recentTexts = []; // 用于连续文本去重
 
-  if (topLevelElements.length > 0) {
-    topLevelElements.forEach(el => {
-      const isUser = el.classList.contains('query-text');
-      const isAi = el.classList.contains('model-response-text') || el.tagName === 'STRUCTURED-CONTENT-CONTAINER';
+  topLevelElements.forEach(el => {
+    const isUser = el.classList.contains('query-text');
+    const isAi = el.classList.contains('model-response-text') || el.tagName === 'STRUCTURED-CONTENT-CONTAINER';
 
-      if (!isUser && !isAi) return;
+    if (!isUser && !isAi) return;
 
-      let text = el.innerText || el.textContent;
-      if (isUser) {
-        text = text.replace(/^你说\s*/, '').trim();
-      }
-      text = cleanChatText(text);
+    let text = el.innerText || el.textContent;
+    if (isUser) {
+      text = text.replace(/^你说\s*/, '').trim();
+    }
+    text = cleanChatText(text);
 
-      if (!text.trim()) return;
+    if (!text.trim()) return;
 
-      // 文本去重：规范化后比较
-      const normalizedText = text.trim().replace(/\s+/g, ' ');
-      if (recentTexts.includes(normalizedText)) return;
+    // 文本去重：规范化后比较
+    const normalizedText = text.trim().replace(/\s+/g, ' ');
+    if (recentTexts.includes(normalizedText)) return;
 
-      recentTexts.push(normalizedText);
-      if (recentTexts.length > 5) recentTexts.shift();
+    recentTexts.push(normalizedText);
+    if (recentTexts.length > 5) recentTexts.shift();
 
-      if (isUser) {
-        md += `## 🙋 ${text}\n\n`;
-      } else {
-        md += `**🤖 AI 回复**:\n\n${formatForMarkdown(text)}\n\n`;
-        md += `---\n\n`;
-      }
+    if (isUser) {
+      currentGroup = { user: { text }, aiReplies: [] };
+      conversationGroups.push(currentGroup);
+    } else if (currentGroup) {
+      currentGroup.aiReplies.push(text);
+    }
+  });
+
+  // 根据选中的索引导出
+  conversationGroups.forEach((group, index) => {
+    if (selectedIndices !== null && !selectedIndices.includes(index)) return;
+
+    md += `## 🙋 ${group.user.text}\n\n`;
+    group.aiReplies.forEach(aiText => {
+      md += `**🤖 AI 回复**:\n\n${formatForMarkdown(aiText)}\n\n`;
+      md += `---\n\n`;
     });
-  } else {
+  });
+
+  if (conversationGroups.length === 0) {
     md += '> ⚠️ 无法提取 Gemini 对话内容，可能选择器已失效。\n';
   }
 
@@ -580,7 +765,7 @@ function extractGeminiContent() {
 }
 
 // 提取 Claude 内容
-function extractClaudeContent() {
+function extractClaudeContent(selectedIndices = null) {
   let md = '';
 
   const mainContainer = document.querySelector(CONFIG.selectors.claude.contentContainer);
@@ -593,6 +778,10 @@ function extractClaudeContent() {
   const children = Array.from(mainContainer.children);
   const recentTexts = [];
   const processedAiContainers = new Set();
+
+  // 按对话分组
+  const conversationGroups = [];
+  let currentGroup = null;
 
   children.forEach(child => {
     if (child.offsetParent === null) return;
@@ -610,7 +799,8 @@ function extractClaudeContent() {
       recentTexts.push(normalizedText);
       if (recentTexts.length > 5) recentTexts.shift();
 
-      md += `## 🙋 ${text}\n\n`;
+      currentGroup = { user: { text }, aiReplies: [] };
+      conversationGroups.push(currentGroup);
     }
 
     // 提取 AI 回复 - 收集所有段落
@@ -641,14 +831,26 @@ function extractClaudeContent() {
           recentTexts.push(normalizedText);
           if (recentTexts.length > 5) recentTexts.shift();
 
-          md += `**🤖 AI 回复**:\n\n${formatForMarkdown(aiText)}\n\n`;
-          md += `---\n\n`;
+          if (currentGroup) {
+            currentGroup.aiReplies.push(aiText);
+          }
         }
       }
     }
   });
 
-  if (children.length === 0) {
+  // 根据选中的索引导出
+  conversationGroups.forEach((group, index) => {
+    if (selectedIndices !== null && !selectedIndices.includes(index)) return;
+
+    md += `## 🙋 ${group.user.text}\n\n`;
+    group.aiReplies.forEach(aiText => {
+      md += `**🤖 AI 回复**:\n\n${formatForMarkdown(aiText)}\n\n`;
+      md += `---\n\n`;
+    });
+  });
+
+  if (conversationGroups.length === 0) {
     md += '> ⚠️ 无法提取 Claude 对话内容，可能选择器已失效。\n';
   }
 

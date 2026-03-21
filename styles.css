@@ -253,3 +253,153 @@
   display: flex;
   align-items: center;
 }
+
+/* ==================== 导出选择对话框 ==================== */
+#ai-toc-export-dialog {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.export-dialog-content {
+  background: rgba(30, 30, 30, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.export-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.export-dialog-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #ececf1;
+  font-weight: 600;
+}
+
+.export-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.export-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ececf1;
+}
+
+.export-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.export-btn-primary {
+  background: #5c7cfa;
+  color: white;
+}
+
+.export-btn-primary:hover {
+  background: #4c6ce9;
+}
+
+.export-btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.export-items-container {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.export-item {
+  margin-bottom: 8px;
+}
+
+.export-item-label {
+  display: flex;
+  align-items: flex-start;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.export-item-label:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.export-checkbox {
+  margin-right: 12px;
+  margin-top: 4px;
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.export-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.export-item-user {
+  font-size: 13px;
+  color: #ececf1;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.export-item-ai {
+  font-size: 12px;
+  color: #9b9b9b;
+}
+
+.export-dialog-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.export-count {
+  font-size: 13px;
+  color: #9b9b9b;
+}
+
+.export-actions {
+  display: flex;
+  gap: 8px;
+}
