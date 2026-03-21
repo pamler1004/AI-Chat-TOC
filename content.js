@@ -522,7 +522,27 @@ function showExportDialog() {
   });
 
   // 生成对话框 HTML
-  let itemsHtml = '';\n  const aiLabel = getAILabel();\n  conversationGroups.forEach((group, groupIndex) => {\n    const userText = group.user.text.substring(0, 80) + (group.user.text.length > 80 ? '...' : '');\n    const aiCount = group.aiReplies.length;\n    // 获取第一条 AI 回复的前 60 个字符作为预览\n    const aiPreview = aiCount > 0\n      ? group.aiReplies[0].text.substring(0, 60) + (group.aiReplies[0].text.length > 60 ? '...' : '')\n      : '暂无回复';\n    itemsHtml += `\n      <div class="export-item" data-group-index="${groupIndex}">\n        <label class="export-item-label">\n          <input type="checkbox" class="export-checkbox" data-group-index="${groupIndex}" checked>\n          <div class="export-item-content">\n            <div class="export-item-user">🙋 ${escapeHtml(userText)}</div>\n            <div class="export-item-ai">🤖 ${aiLabel} 回复 × ${aiCount} · ${escapeHtml(aiPreview)}</div>\n          </div>\n        </label>\n      </div>\n    `;\n  });
+  let itemsHtml = '';
+  const aiLabel = getAILabel();
+  conversationGroups.forEach((group, groupIndex) => {
+    const userText = group.user.text.substring(0, 80) + (group.user.text.length > 80 ? '...' : '');
+    const aiCount = group.aiReplies.length;
+    // 获取第一条 AI 回复的前 60 个字符作为预览
+    const aiPreview = aiCount > 0
+      ? group.aiReplies[0].text.substring(0, 60) + (group.aiReplies[0].text.length > 60 ? '...' : '')
+      : '暂无回复';
+    itemsHtml += `
+      <div class="export-item" data-group-index="${groupIndex}">
+        <label class="export-item-label">
+          <input type="checkbox" class="export-checkbox" data-group-index="${groupIndex}" checked>
+          <div class="export-item-content">
+            <div class="export-item-user">🙋 ${escapeHtml(userText)}</div>
+            <div class="export-item-ai">🤖 ${aiLabel} 回复 × ${aiCount} · ${escapeHtml(aiPreview)}</div>
+          </div>
+        </label>
+      </div>
+    `;
+  });
 
   dialog.innerHTML = `
     <div class="export-dialog-content">
@@ -802,8 +822,8 @@ function extractClaudeContent(selectedIndices = null) {
       conversationGroups.push(currentGroup);
     }
 
-    // 提取 AI 回复 - 查找包含 AI 回复的容器
-    // Claude 的 AI 回复容器通常包含 .font-claude-response-body 元素
+    // 提取 AI 回复 - 获取整个容器的完整内容
+    // 先找到包含 .font-claude-response-body 的容器
     const aiParagraphs = child.querySelectorAll('.font-claude-response-body');
     if (aiParagraphs.length > 0 && !userMsg) {
       const firstParagraph = aiParagraphs[0];
@@ -812,25 +832,23 @@ function extractClaudeContent(selectedIndices = null) {
       if (!processedAiContainers.has(containerKey)) {
         processedAiContainers.add(containerKey);
 
-        // 获取整个 AI 回复容器的内容
-        // 先尝试找到包含所有段落的父容器
-        let aiContainer = firstParagraph.parentElement;
-        while (aiContainer && aiContainer !== child) {
-          // 检查父容器是否包含更多的 .font-claude-response-body 元素
-          const containerAiParagraphs = aiContainer.querySelectorAll('.font-claude-response-body');
-          if (containerAiParagraphs.length === aiParagraphs.length) {
+        // 找到 AI 回复的完整容器（包含标题、段落等所有内容）
+        // 从容器的子元素中查找，跳过用户消息容器
+        let aiContainer = null;
+        for (const el of child.children) {
+          if (el.querySelector('.font-claude-response-body')) {
+            aiContainer = el;
             break;
           }
-          aiContainer = aiContainer.parentElement;
         }
 
-        // 收集容器内的所有文本内容
+        // 收集所有文本内容
         let aiText = '';
-        if (aiContainer && aiContainer !== child) {
-          // 如果有容器，获取容器内的所有可见文本
+        if (aiContainer) {
+          // 获取容器内所有可见文本
           aiText = aiContainer.textContent.trim();
         } else {
-          // 否则收集所有段落的文本
+          // 兜底：收集所有段落的文本
           const paragraphs = [];
           aiParagraphs.forEach(p => {
             const text = p.textContent.trim();
