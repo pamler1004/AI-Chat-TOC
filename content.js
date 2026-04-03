@@ -136,12 +136,12 @@ function createContainer() {
   const preventWheelBubble = (e) => {
     // 首先阻止冒泡
     e.stopPropagation();
-    // 阻止默认滚动行为，让列表自己处理滚动
-    e.preventDefault();
+    // 不再阻止默认行为，让列表自己处理滚动
+    // e.preventDefault();
   };
 
   // 在列表上监听滚动事件（容器不需要，因为列表是滚动元素）
-  list.addEventListener('wheel', preventWheelBubble, { passive: false });
+  list.addEventListener('wheel', preventWheelBubble, { passive: true });
   console.log('[AI Chat TOC] Wheel event listeners added');
 }
 
@@ -212,7 +212,10 @@ function parseChatGPT() {
 
     // 尝试获取文本内容
     const textDiv = el.innerText || el.textContent;
-    const text = textDiv.trim().split('\n')[0]; // 取第一行作为标题
+    let text = textDiv.trim();
+    // 用户消息取第一行，AI 回复显示完整内容（最多 3 行）
+    const lines = text.split('\n');
+    text = isUser ? lines[0] : lines.slice(0, 3).join(' ');
 
     // 生成唯一 ID
     const stableId = `ai-toc-msg-${isUser ? 'user' : 'ai'}-${hashCode(text)}`;
@@ -301,7 +304,9 @@ function parseGemini() {
     if (isUser) {
       textDiv = textDiv.replace(/^你说\s*/, '').trim();
     }
-    const text = textDiv.trim().split('\n')[0]; // 取第一行作为标题
+    // 用户消息取第一行，AI 回复显示完整内容（最多 3 行）
+    const lines = textDiv.trim().split('\n');
+    const text = isUser ? lines[0] : lines.slice(0, 3).join(' ');
 
     // 生成唯一 ID
     const stableId = `ai-toc-msg-gemini-${isUser ? 'user' : 'ai'}-${hashCode(text)}`;
@@ -367,7 +372,10 @@ function parseClaude() {
     // 检查是否是用户消息
     const userMsg = child.querySelector(CONFIG.selectors.claude.userMessage);
     if (userMsg) {
-      const userText = userMsg.textContent.trim();
+      let userText = userMsg.textContent.trim();
+      // 只取第一行作为标题
+      const lines = userText.split('\n');
+      userText = lines[0].trim();
       if (userText) {
         const stableId = `ai-toc-msg-claude-user-${hashCode(userText)}`;
         if (!userMsg.id) {
@@ -395,24 +403,34 @@ function parseClaude() {
 
         // 收集所有段落的文本
         let aiText = '';
+        const allLines = [];
         aiParagraphs.forEach(p => {
           const text = p.textContent.trim();
           if (text && text.length > 5) {
             if (!aiText) {
               aiText = text; // 取第一段作为标题
             }
+            allLines.push(text);
           }
         });
 
-        if (aiText && aiText.length > 10) {
-          const stableId = `ai-toc-msg-claude-ai-${hashCode(aiText)}`;
+        // AI 回复只取第一行作为标题
+        let displayText = aiText;
+        // 如果文本太长，只取第一行
+        const aiLines = displayText.split('\n');
+        if (aiLines.length > 1) {
+          displayText = aiLines[0].trim();
+        }
+
+        if (displayText && displayText.length > 10) {
+          const stableId = `ai-toc-msg-claude-ai-${hashCode(displayText)}`;
           if (!firstParagraph.id) {
             firstParagraph.id = stableId;
           }
           allElements.push({
             el: firstParagraph,
             type: 'ai',
-            text: cleanClaudeTitle(aiText)
+            text: displayText
           });
         }
       }
@@ -1109,13 +1127,14 @@ function createClickHandler(item, div) {
     }
 
     if (target) {
-      target.scrollIntoView({ behavior: 'auto', block: 'center' });
+      // 使用 block: 'start' 确保滚动到元素顶部（第一行）
+      target.scrollIntoView({ behavior: 'auto', block: 'start' });
       // 高亮一下
       highlightActive(div);
 
       // 修复 Gemini 跳转不稳定：有时候第一次没滚过去，延时再滚一次
       setTimeout(() => {
-        target.scrollIntoView({ behavior: 'auto', block: 'center' });
+        target.scrollIntoView({ behavior: 'auto', block: 'start' });
       }, 150);
     }
   };
