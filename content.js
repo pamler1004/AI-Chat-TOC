@@ -134,13 +134,9 @@ function createContainer() {
 
   // 阻止滚动事件冒泡到页面，避免鼠标在目录上滚动时页面也滚动
   const preventWheelBubble = (e) => {
-    // 首先阻止冒泡
     e.stopPropagation();
-    // 不再阻止默认行为，让列表自己处理滚动
-    // e.preventDefault();
   };
 
-  // 在列表上监听滚动事件（容器不需要，因为列表是滚动元素）
   list.addEventListener('wheel', preventWheelBubble, { passive: true });
   console.log('[AI Chat TOC] Wheel event listeners added');
 }
@@ -213,9 +209,9 @@ function parseChatGPT() {
     // 尝试获取文本内容
     const textDiv = el.innerText || el.textContent;
     let text = textDiv.trim();
-    // 用户消息取第一行，AI 回复显示完整内容（最多 3 行）
+    // 统一只取第一行作为标题
     const lines = text.split('\n');
-    text = isUser ? lines[0] : lines.slice(0, 3).join(' ');
+    text = lines[0].trim();
 
     // 生成唯一 ID
     const stableId = `ai-toc-msg-${isUser ? 'user' : 'ai'}-${hashCode(text)}`;
@@ -304,9 +300,9 @@ function parseGemini() {
     if (isUser) {
       textDiv = textDiv.replace(/^你说\s*/, '').trim();
     }
-    // 用户消息取第一行，AI 回复显示完整内容（最多 3 行）
+    // 统一只取第一行作为标题
     const lines = textDiv.trim().split('\n');
-    const text = isUser ? lines[0] : lines.slice(0, 3).join(' ');
+    const text = lines[0].trim();
 
     // 生成唯一 ID
     const stableId = `ai-toc-msg-gemini-${isUser ? 'user' : 'ai'}-${hashCode(text)}`;
@@ -401,22 +397,17 @@ function parseClaude() {
       if (!processedAiContainers.has(containerKey)) {
         processedAiContainers.add(containerKey);
 
-        // 收集所有段落的文本
+        // 取第一段的文本作为标题
         let aiText = '';
-        const allLines = [];
         aiParagraphs.forEach(p => {
           const text = p.textContent.trim();
-          if (text && text.length > 5) {
-            if (!aiText) {
-              aiText = text; // 取第一段作为标题
-            }
-            allLines.push(text);
+          if (text && text.length > 5 && !aiText) {
+            aiText = text; // 取第一段作为标题
           }
         });
 
-        // AI 回复只取第一行作为标题
+        // 只取第一行作为标题
         let displayText = aiText;
-        // 如果文本太长，只取第一行
         const aiLines = displayText.split('\n');
         if (aiLines.length > 1) {
           displayText = aiLines[0].trim();
