@@ -47,12 +47,42 @@ let bookmarkedItems = new Set(
 // 初始化
 function init() {
   detectPlatform();
+  // 对于 Claude，检查是否在对话详情页
+  if (currentPlatform === 'claude' && !isClaudeConversationPage()) {
+    console.log('[AI Chat TOC] Not on Claude conversation page, skipping initialization');
+    return;
+  }
   // 延迟一点创建，确保页面加载
   setTimeout(() => {
     createContainer();
     startObserving();
   }, 1000);
   console.log('[AI Chat TOC] Loaded. Platform:', currentPlatform);
+}
+
+// 检查是否在 Claude 对话详情页
+function isClaudeConversationPage() {
+  // 方法1：检查 URL 路径
+  // Claude 对话详情页的 URL 格式类似：https://claude.ai/chat/conv-xxxxx
+  // 首页的 URL 是：https://claude.ai/ 或 https://claude.ai/chat
+  const pathname = window.location.pathname;
+  // 如果路径是 /chat 或 / 或空，说明是在首页
+  if (pathname === '/' || pathname === '/chat' || pathname === '' || pathname.endsWith('/chat')) {
+    return false;
+  }
+  // 如果路径包含 /chat/conv-，说明是在对话详情页
+  if (pathname.includes('/chat/conv-') || pathname.includes('/chat/archive')) {
+    return true;
+  }
+  // 方法2：检查页面上是否有对话容器作为兜底
+  const mainContainer = document.querySelector(CONFIG.selectors.claude.contentContainer);
+  if (!mainContainer) {
+    return false;
+  }
+  // 检查容器内是否有用户消息或 AI 回复
+  const hasUserMessage = mainContainer.querySelector(CONFIG.selectors.claude.userMessage);
+  const hasAiMessage = mainContainer.querySelector(CONFIG.selectors.claude.aiMessage);
+  return hasUserMessage || hasAiMessage;
 }
 
 // 识别当前平台
