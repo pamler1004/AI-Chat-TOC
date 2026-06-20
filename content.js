@@ -66,7 +66,6 @@ function init() {
       setupClaude();
     }
     watchClaudeRoute();
-    console.log('[AI Chat TOC] Loaded. Platform: claude (route-aware)');
     return;
   }
 
@@ -75,7 +74,6 @@ function init() {
     createContainer();
     startObserving();
   }, 1000);
-  console.log('[AI Chat TOC] Loaded. Platform:', currentPlatform);
 }
 
 // Claude 初始化（创建容器 + 启动监听），幂等：容器已存在则跳过
@@ -250,7 +248,6 @@ function createContainer() {
   };
 
   list.addEventListener('wheel', preventWheelBubble, { passive: true });
-  console.log('[AI Chat TOC] Wheel event listeners added');
 }
 
 // 开始监听 DOM 变化
@@ -1271,9 +1268,6 @@ function highlightActive(activeDiv) {
 
 // 导出为图片 - 使用 html2canvas
 function exportToImage(selectedIndices, conversationGroups) {
-  console.log('[AI Chat TOC] exportToImage called', { selectedIndices, conversationCount: conversationGroups.length });
-  console.log('[AI Chat TOC] html2canvas available:', !!window.html2canvas, 'typeof:', typeof html2canvas);
-
   // 检查 html2canvas 是否可用 - 同时检查 window.html2canvas 和全局 html2canvas
   const html2canvasLib = window.html2canvas || (typeof html2canvas !== 'undefined' ? html2canvas : null);
 
