@@ -1128,11 +1128,17 @@ function renderTOC() {
   // 目录只展示用户提问作为锚点（AI 回复不进目录，但仍保留在 tocItems 中供导出使用）
   const visibleItems = tocItems.filter(i => i.type === 'user');
 
-  // 没有可显示的提问，隐藏整个容器
-  if (visibleItems.length === 0) {
+  // 至少 2 条用户提问才显示目录：
+  // 1. 单问场景没必要做目录（用户一眼能看到唯一的问题）
+  // 2. 顺带挡住 Gemini 等平台首页将欢迎语/示例卡片误识别成 1 条提问的情况
+  if (visibleItems.length < 2) {
     const container = document.getElementById('ai-toc-container');
     if (container) {
       container.style.display = 'none';
+      // 同时清掉 pinned 状态：固定不持久化，下次符合条件再展示时回到默认收起态
+      container.classList.remove('pinned');
+      const pinBtn = container.querySelector('.ai-toc-pin');
+      if (pinBtn) pinBtn.classList.remove('active');
     }
     list.innerHTML = ''; // 清空内容
     lastRenderSignature = ''; // 重置签名
