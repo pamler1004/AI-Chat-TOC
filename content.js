@@ -40,24 +40,106 @@ let tocItems = [];
 let currentPlatform = 'unknown';
 // 从 localStorage 读取收藏状态，如果没有则初始化为空 Set
 // 使用新的 stableId 格式（基于内容哈希），确保 DOM 重排后收藏状态不丢失
-let bookmarkedItems = new Set(
-  JSON.parse(localStorage.getItem('bookmarkedItems') || '[]')
-); // 存储已收藏的项的 stableId
+let bookmarkedItems; // 存储已收藏的项的 stableId
+try {
+  const raw = JSON.parse(localStorage.getItem('bookmarkedItems') || '[]');
+  bookmarkedItems = new Set(Array.isArray(raw) ? raw : []);
+} catch (e) {
+  // localStorage 损坏时不致整个脚本启动失败
+  bookmarkedItems = new Set();
+}
+
+// 上次渲染的数据签名，用于跳过无变化的 DOM 操作（防 hover 闪烁）
+let lastRenderSignature = '';
 
 // 初始化
 function init() {
   detectPlatform();
-  // 对于 Claude，检查是否在对话详情页
-  if (currentPlatform === 'claude' && !isClaudeConversationPage()) {
-    console.log('[AI Chat TOC] Not on Claude conversation page, skipping initialization');
+
+  if (currentPlatform === 'claude') {
+    // Claude 是单页应用（SPA）：首次加载可能落在首页。
+    // 首页不显示目录（isClaudeConversationPage 返回 false），
+    // 但从首页点进对话页时，SPA 路由不会重新加载本脚本，
+    // 导致目录不出现（只有手动刷新页面才显示）。
+    // 解决：在对话页立即初始化；并监听路由变化，进入对话页时自动补初始化。
+    if (isClaudeConversationPage()) {
+      setupClaude();
+    }
+    watchClaudeRoute();
+    console.log('[AI Chat TOC] Loaded. Platform: claude (route-aware)');
     return;
   }
-  // 延迟一点创建，确保页面加载
+
+  // 其他平台正常初始化
   setTimeout(() => {
     createContainer();
     startObserving();
   }, 1000);
   console.log('[AI Chat TOC] Loaded. Platform:', currentPlatform);
+}
+
+// Claude 初始化（创建容器 + 启动监听），幂等：容器已存在则跳过
+function setupClaude() {
+  if (document.getElementById('ai-toc-container')) return;
+  // 延迟一点，确保对话 DOM 渲染完成
+  setTimeout(() => {
+    createContainer();
+    startObserving();
+  }, 1000);
+}
+
+// 监听 Claude SPA 路由变化，进入对话页时自动初始化目录
+// 覆盖：首页 → 对话页、对话间切换、新对话发消息后 DOM 出现等场景
+function watchClaudeRoute() {
+  // 幂等守卫：history hook / 事件监听只安装一次，避免重复包装与监听器叠加
+  if (window.__tocRouteHooked) return;
+  window.__tocRouteHooked = true;
+
+  let lastPath = window.location.pathname;
+
+  const check = () => {
+    if (window.location.pathname !== lastPath) {
+      lastPath = window.location.pathname;
+    }
+    // 进入对话态（URL 或 DOM 判定）且尚未创建容器 → 补初始化
+    if (!document.getElementById('ai-toc-container') && isClaudeConversationPage()) {
+      setupClaude();
+    }
+  };
+
+  // hook history API：SPA 路由的主要触发方式（低延迟响应）
+  ['pushState', 'replaceState'].forEach((type) => {
+    const orig = history[type];
+    history[type] = function (...args) {
+      const ret = orig.apply(this, args);
+      setTimeout(check, 50);
+      return ret;
+    };
+  });
+  // 浏览器前进/后退
+  window.addEventListener('popstate', () => setTimeout(check, 50));
+
+  // 兜底轮询：覆盖少数不触发上述事件的导航，以及"URL 不变但 DOM 出现消息"（新对话）的场景
+  setInterval(check, 1500);
+}
+
+// 查找 Claude 对话主容器（多级回退，应对改版导致的选择器失效）
+function findClaudeContainer() {
+  const candidates = [
+    CONFIG.selectors.claude.contentContainer, // 原精确选择器优先
+    'main [class*="max-w-3xl"]',
+    'main [class*="max-w"]',
+    '[class*="conversation"] [class*="max-w"]',
+    'main' // 最终兜底
+  ];
+  for (const sel of candidates) {
+    try {
+      const el = document.querySelector(sel);
+      // 必须包含多个子元素才视为对话容器（避免选到过宽但无内容的元素）
+      if (el && el.children.length >= 2) return el;
+    } catch (e) { /* 非法选择器，跳过 */ }
+  }
+  return null;
 }
 
 // 检查是否在 Claude 对话详情页
@@ -75,7 +157,7 @@ function isClaudeConversationPage() {
     return true;
   }
   // 方法2：检查页面上是否有对话容器作为兜底
-  const mainContainer = document.querySelector(CONFIG.selectors.claude.contentContainer);
+  const mainContainer = findClaudeContainer();
   if (!mainContainer) {
     return false;
   }
@@ -123,10 +205,10 @@ function createContainer() {
   `;
 
   header.innerHTML = `
-    <span>目录</span>
+    <span>Contents</span>
     <div class="ai-toc-controls">
-      <span class="ai-toc-export" title="导出为 Markdown">${downloadIcon}</span>
-      <span class="ai-toc-pin" title="固定/取消固定">${pinIcon}</span>
+      <span class="ai-toc-export" title="Export as Markdown / 导出为 Markdown">${downloadIcon}</span>
+      <span class="ai-toc-pin" title="Pin / 固定">${pinIcon}</span>
     </div>
   `;
 
@@ -173,14 +255,19 @@ function createContainer() {
 
 // 开始监听 DOM 变化
 function startObserving() {
-  // 使用 MutationObserver 监听主要内容区域的变化
-  const targetNode = document.body; // 范围稍微大一点，确保能捕获
+  // 优先监听主内容区（范围更小、AI 流式输出时触发更少）；找不到才回退到 body
+  const targetNode = document.querySelector('main') || document.body;
   const config = { childList: true, subtree: true };
 
-  const callback = function(mutationsList, observer) {
-    // 简单防抖，避免过于频繁更新
-    if (window.tocUpdateTimeout) clearTimeout(window.tocUpdateTimeout);
-    window.tocUpdateTimeout = setTimeout(updateTOC, 500);
+  const callback = function (mutationsList) {
+    // 只对结构变化（节点增删）触发防抖，忽略纯文本/属性变化，
+    // 大幅减少 AI 流式输出（逐 token 更新）时的无效触发
+    const hasStructural = mutationsList.some(
+      m => m.addedNodes.length > 0 || m.removedNodes.length > 0
+    );
+    if (!hasStructural) return;
+    if (window.__tocUpdateTimer) clearTimeout(window.__tocUpdateTimer);
+    window.__tocUpdateTimer = setTimeout(updateTOC, 500);
   };
 
   const observer = new MutationObserver(callback);
@@ -192,14 +279,19 @@ function startObserving() {
 
 // 更新目录的核心逻辑
 function updateTOC() {
-  if (currentPlatform === 'chatgpt') {
-    parseChatGPT();
-  } else if (currentPlatform === 'gemini') {
-    parseGemini();
-  } else if (currentPlatform === 'claude') {
-    parseClaude();
+  // 全链路安全包装：单条异常消息不应拖垮整个目录功能
+  try {
+    if (currentPlatform === 'chatgpt') {
+      parseChatGPT();
+    } else if (currentPlatform === 'gemini') {
+      parseGemini();
+    } else if (currentPlatform === 'claude') {
+      parseClaude();
+    }
+    renderTOC();
+  } catch (e) {
+    console.error('[AI Chat TOC] updateTOC failed:', e);
   }
-  renderTOC();
 }
 
 // 解析 ChatGPT 页面
@@ -255,7 +347,6 @@ function parseChatGPT() {
         stableId: stableId,
         text: text,
         type: isUser ? 'user' : 'ai',
-        element: el
       };
       // 保留收藏状态 - 只对用户消息有效
       if (isUser && bookmarkedItems.has(stableId)) {
@@ -346,7 +437,6 @@ function parseGemini() {
         stableId: stableId,
         text: text,
         type: isUser ? 'user' : 'ai',
-        element: el
       };
       // 保留收藏状态 - 只对用户消息有效
       if (isUser && bookmarkedItems.has(stableId)) {
@@ -375,10 +465,9 @@ function parseClaude() {
   // Claude 的结构：主容器包含所有对话，每个对话是独立的 DIV
   // 用户消息：有 .font-large 类
   // AI 回复：有 .font-claude-response-body 类（但每个段落都有这个类，所以需要找到第一个段落）
-  const mainContainer = document.querySelector(CONFIG.selectors.claude.contentContainer);
+  const mainContainer = findClaudeContainer();
 
   if (!mainContainer) {
-    // console.log('[Claude] Main container not found');
     return;
   }
 
@@ -474,7 +563,6 @@ function parseClaude() {
         stableId: stableId,
         text: text,
         type: type,
-        element: el
       };
       // 保留收藏状态 - 只对用户消息有效
       if (type === 'user' && bookmarkedItems.has(stableId)) {
@@ -505,7 +593,7 @@ function exportToMarkdown(selectedItems = null) {
   // 添加标题
   const title = document.title || 'AI Chat Export';
   markdownContent += `# ${title}\n\n`;
-  markdownContent += `> 导出时间：${new Date().toLocaleString()}\n\n---\n\n`;
+  markdownContent += `> Export time: / 导出时间：${new Date().toLocaleString()}\n\n---\n\n`;
 
   if (currentPlatform === 'chatgpt') {
     markdownContent += extractChatGPTContent(selectedItems);
@@ -514,7 +602,7 @@ function exportToMarkdown(selectedItems = null) {
   } else if (currentPlatform === 'claude') {
     markdownContent += extractClaudeContent(selectedItems);
   } else {
-    markdownContent += '> 无法识别当前平台，导出失败。\n';
+    markdownContent += '> Cannot identify the current platform, export failed. / 无法识别当前平台，导出失败。\n';
   }
 
   downloadFile(markdownContent, `chat-export-${new Date().toISOString().slice(0,10)}.md`);
@@ -569,14 +657,14 @@ function showExportDialog() {
     // 获取第一条 AI 回复的前 60 个字符作为预览
     const aiPreview = aiCount > 0
       ? group.aiReplies[0].text.substring(0, 60) + (group.aiReplies[0].text.length > 60 ? '...' : '')
-      : '暂无回复';
+      : 'No reply / 暂无回复';
     itemsHtml += `
       <div class="export-item" data-group-index="${groupIndex}">
         <label class="export-item-label">
           <input type="checkbox" class="export-checkbox" data-group-index="${groupIndex}" checked>
           <div class="export-item-content">
             <div class="export-item-user">🙋 ${escapeHtml(userText)}</div>
-            <div class="export-item-ai">🤖 ${aiLabel} 回复 × ${aiCount} · ${escapeHtml(aiPreview)}</div>
+            <div class="export-item-ai">🤖 ${aiLabel} Reply / 回复 × ${aiCount} · ${escapeHtml(aiPreview)}</div>
           </div>
         </label>
       </div>
@@ -586,23 +674,23 @@ function showExportDialog() {
   dialog.innerHTML = `
     <div class="export-dialog-content">
       <div class="export-dialog-header">
-        <h3>选择要导出的对话</h3>
+        <h3>Select Conversations to Export / 选择要导出的对话</h3>
         <div class="export-controls">
-          <button id="export-select-all" class="export-btn">全选</button>
-          <button id="export-select-none" class="export-btn">取消全选</button>
-          <button id="export-select-inverse" class="export-btn">反选</button>
+          <button id="export-select-all" class="export-btn">Select All / 全选</button>
+          <button id="export-select-none" class="export-btn">Deselect All / 取消全选</button>
+          <button id="export-select-inverse" class="export-btn">Invert / 反选</button>
         </div>
       </div>
       <div class="export-items-container">
         ${itemsHtml}
       </div>
       <div class="export-dialog-footer">
-        <span class="export-count">已选择：<span id="export-selected-count">${conversationGroups.length}</span> / ${conversationGroups.length}</span>
+        <span class="export-count">Selected / 已选择：<span id="export-selected-count">${conversationGroups.length}</span> / ${conversationGroups.length}</span>
         <div class="export-actions">
-          <button id="export-cancel" class="export-btn export-btn-secondary">取消</button>
-          <button id="export-preview" class="export-btn export-btn-secondary">预览</button>
-          <button id="export-image" class="export-btn export-btn-secondary">导出为图片</button>
-          <button id="export-confirm" class="export-btn export-btn-primary">导出所选</button>
+          <button id="export-cancel" class="export-btn export-btn-secondary">Cancel / 取消</button>
+          <button id="export-preview" class="export-btn export-btn-secondary">Preview / 预览</button>
+          <button id="export-image" class="export-btn export-btn-secondary">Export as Image / 导出为图片</button>
+          <button id="export-confirm" class="export-btn export-btn-primary">Export Selected / 导出所选</button>
         </div>
       </div>
     </div>
@@ -644,22 +732,26 @@ function showExportDialog() {
     dialog.remove();
   };
 
+  // 收集当前勾选的对话组索引（预览/导出Markdown/导出图片共用）
+  const getSelectedIndices = () => {
+    const indices = [];
+    checkboxes.forEach((cb, index) => {
+      if (cb.checked) indices.push(index);
+    });
+    return indices;
+  };
+
   // 预览
   previewBtn.onclick = () => {
-    showImagePreview(selectedIndices, conversationGroups);
+    showImagePreview(getSelectedIndices(), conversationGroups);
   };
 
   // 确认导出 Markdown
   confirmBtn.onclick = () => {
-    const selectedIndices = [];
-    checkboxes.forEach((cb, index) => {
-      if (cb.checked) {
-        selectedIndices.push(index);
-      }
-    });
+    const selectedIndices = getSelectedIndices();
 
     if (selectedIndices.length === 0) {
-      alert('请至少选择一个对话');
+      alert('Please select at least one conversation / 请至少选择一个对话');
       return;
     }
 
@@ -674,16 +766,10 @@ function showExportDialog() {
 
   // 导出为图片
   exportImageBtn.onclick = () => {
-    console.log('[AI Chat TOC] Export image button clicked');
-    const selectedIndices = [];
-    checkboxes.forEach((cb, index) => {
-      if (cb.checked) {
-        selectedIndices.push(index);
-      }
-    });
+    const selectedIndices = getSelectedIndices();
 
     if (selectedIndices.length === 0) {
-      alert('请至少选择一个对话');
+      alert('Please select at least one conversation / 请至少选择一个对话');
       return;
     }
 
@@ -757,13 +843,13 @@ function extractChatGPTContent(selectedIndices = null) {
 
       md += `## 🙋 ${group.user.text}\n\n`;
       group.aiReplies.forEach(aiText => {
-        md += `**🤖 ${getAILabel()} 回复**:\n\n${formatForMarkdown(aiText)}\n\n`;
+        md += `**🤖 ${getAILabel()} Reply / 回复**:\n\n${formatForMarkdown(aiText)}\n\n`;
         md += `---\n\n`;
       });
     });
   } else {
     // 兜底策略：使用之前的选择器
-    md += '> ⚠️ 无法精确提取对话结构，仅导出目录项。\n\n';
+    md += '> ⚠️ Could not extract conversation structure precisely, only TOC items exported. / 无法精确提取对话结构，仅导出目录项。\n\n';
     tocItems.forEach(item => {
        md += `## Question\n\n${item.text}\n\n`;
     });
@@ -839,13 +925,13 @@ function extractGeminiContent(selectedIndices = null) {
 
     md += `## 🙋 ${group.user.text}\n\n`;
     group.aiReplies.forEach(aiText => {
-      md += `**🤖 ${getAILabel()} 回复**:\n\n${formatForMarkdown(aiText)}\n\n`;
+      md += `**🤖 ${getAILabel()} Reply / 回复**:\n\n${formatForMarkdown(aiText)}\n\n`;
       md += `---\n\n`;
     });
   });
 
   if (conversationGroups.length === 0) {
-    md += '> ⚠️ 无法提取 Gemini 对话内容，可能选择器已失效。\n';
+    md += '> ⚠️ Failed to extract Gemini conversation content, selectors may be outdated. / 无法提取 Gemini 对话内容，可能选择器已失效。\n';
   }
 
   return md;
@@ -855,10 +941,10 @@ function extractGeminiContent(selectedIndices = null) {
 function extractClaudeContent(selectedIndices = null) {
   let md = '';
 
-  const mainContainer = document.querySelector(CONFIG.selectors.claude.contentContainer);
+  const mainContainer = findClaudeContainer();
 
   if (!mainContainer) {
-    md += '> ⚠️ 无法提取 Claude 对话内容，主容器未找到。\n';
+    md += '> ⚠️ Failed to extract Claude conversation content, main container not found. / 无法提取 Claude 对话内容，主容器未找到。\n';
     return md;
   }
 
@@ -949,13 +1035,13 @@ function extractClaudeContent(selectedIndices = null) {
 
     md += `## 🙋 ${group.user.text}\n\n`;
     group.aiReplies.forEach(aiText => {
-      md += `**🤖 ${getAILabel()} 回复**:\n\n${formatForMarkdown(aiText)}\n\n`;
+      md += `**🤖 ${getAILabel()} Reply / 回复**:\n\n${formatForMarkdown(aiText)}\n\n`;
       md += `---\n\n`;
     });
   });
 
   if (conversationGroups.length === 0) {
-    md += '> ⚠️ 无法提取 Claude 对话内容，可能选择器已失效。\n';
+    md += '> ⚠️ Failed to extract Claude conversation content, selectors may be outdated. / 无法提取 Claude 对话内容，可能选择器已失效。\n';
   }
 
   return md;
@@ -1042,13 +1128,17 @@ function renderTOC() {
   const list = document.getElementById('ai-toc-list');
   if (!list) return;
 
-  // 如果没有目录项，隐藏整个容器
-  if (tocItems.length === 0) {
+  // 目录只展示用户提问作为锚点（AI 回复不进目录，但仍保留在 tocItems 中供导出使用）
+  const visibleItems = tocItems.filter(i => i.type === 'user');
+
+  // 没有可显示的提问，隐藏整个容器
+  if (visibleItems.length === 0) {
     const container = document.getElementById('ai-toc-container');
     if (container) {
       container.style.display = 'none';
     }
     list.innerHTML = ''; // 清空内容
+    lastRenderSignature = ''; // 重置签名
     return;
   }
 
@@ -1058,49 +1148,57 @@ function renderTOC() {
     container.style.display = 'flex';
   }
 
-  // 增量更新 (Diff) 逻辑
-  // 1. 获取当前 DOM 中的所有目录项
-  const existingItems = Array.from(list.children);
+  // 数据签名：stableId+收藏+文本 完全一致则跳过 DOM 操作。
+  // Claude 页面后台 DOM 变化频繁（会触发 observer→updateTOC→本函数），
+  // 若每次都 appendChild 重排，hover 锚点时会闪烁。数据没变就不碰 DOM。
+  const signature = visibleItems.map(i =>
+    i.stableId + ':' + (bookmarkedItems.has(i.stableId) ? 1 : 0) + ':' + i.text
+  ).join('|');
+  if (signature === lastRenderSignature) return;
+  lastRenderSignature = signature;
 
-  // 2. 遍历新的数据
-  tocItems.forEach((item, index) => {
-    let div = existingItems[index];
+  // 基于 stableId 的增量更新：复用/新建/删除，并按数据顺序重排
+  // 避免按 index 匹配导致的错位（编辑/重试消息后点 A 跳 B、星标贴错条目）
+  const existingMap = new Map();
+  Array.from(list.children).forEach(div => {
+    if (div.dataset.stableId) existingMap.set(div.dataset.stableId, div);
+  });
 
-    // 如果该位置没有元素，创建新元素
+  const seen = new Set();
+  visibleItems.forEach(item => {
+    seen.add(item.stableId);
+    let div = existingMap.get(item.stableId);
     if (!div) {
       div = document.createElement('div');
       div.className = 'ai-toc-item';
-      list.appendChild(div);
+      div.dataset.stableId = item.stableId;
     }
 
     // 根据类型设置不同的类名
     div.classList.remove('user', 'ai');
     div.classList.add(item.type);
 
-    // 更新文本和标题 - 添加类型图标
-    const icon = item.type === 'user' ? '💬' : '🤖';
-    const displayText = `${icon} ${item.text}`;
-    if (div.innerText !== displayText) {
-      div.innerText = displayText;
+    // 更新文本（纯文本，无图标，用 textContent 防 XSS）
+    if (div.dataset.tocFp !== item.text) {
+      div.textContent = item.text;
+      div.dataset.tocFp = item.text;
       div.title = item.text;
     }
 
-    // 更新收藏状态 - 直接从 bookmarkedItems Set 检查，而不是依赖 item.bookmarked
-    const isBookmarked = bookmarkedItems.has(item.stableId);
-    if (isBookmarked) {
-      div.classList.add('bookmarked');
-    } else {
-      div.classList.remove('bookmarked');
-    }
+    // 更新收藏状态
+    div.classList.toggle('bookmarked', bookmarkedItems.has(item.stableId));
 
     // 更新点击事件（确保闭包里的 item 是最新的）
     div.onclick = createClickHandler(item, div);
+
+    // 按数据顺序重新挂载（已存在的元素 appendChild 会移动它，保持顺序正确）
+    list.appendChild(div);
   });
 
-  // 3. 删除多余的 DOM 元素
-  while (list.children.length > tocItems.length) {
-    list.removeChild(list.lastChild);
-  }
+  // 删除已不存在的项
+  existingMap.forEach((div, sid) => {
+    if (!seen.has(sid)) div.remove();
+  });
 }
 
 // 切换收藏状态
@@ -1119,44 +1217,49 @@ function toggleBookmark(stableId, div) {
 // 提取点击处理函数，避免闭包陷阱
 function createClickHandler(item, div) {
   return (e) => {
-    // 计算点击位置相对于 div 左侧的距离
-    const rect = div.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
+    // 安全包装：点击处理出错时记录而非静默失效
+    try {
+      // 计算点击位置相对于 div 左侧的距离
+      const rect = div.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
 
-    // 只有用户消息才有收藏功能
-    // 点击左侧 32px 区域（覆盖收藏图标区域），只切换收藏，不滚动
-    if (item.type === 'user' && clickX < 32) {
-      toggleBookmark(item.stableId, div);
-      return;
-    }
-
-    // 否则，滚动到对应元素
-    let target = document.getElementById(item.id);
-
-    // 修复 Gemini 等动态页面中元素 ID 丢失或 DOM 重建的问题
-    if (!target || !document.body.contains(target)) {
-      // 尝试强制刷新一次 DOM 解析
-      if (currentPlatform === 'chatgpt') parseChatGPT();
-      else if (currentPlatform === 'gemini') parseGemini();
-      else if (currentPlatform === 'claude') parseClaude();
-
-      // 尝试通过文本内容重新定位元素
-      const newItem = tocItems.find(t => t.text === item.text);
-      if (newItem) {
-        target = document.getElementById(newItem.id);
+      // 只有用户消息才有收藏功能
+      // 点击左侧 32px 区域（覆盖收藏图标区域），只切换收藏，不滚动
+      if (item.type === 'user' && clickX < 32) {
+        toggleBookmark(item.stableId, div);
+        return;
       }
-    }
 
-    if (target) {
-      // 使用 block: 'start' 确保滚动到元素顶部（第一行）
-      target.scrollIntoView({ behavior: 'auto', block: 'start' });
-      // 高亮一下
-      highlightActive(div);
+      // 否则，滚动到对应元素
+      let target = document.getElementById(item.id);
 
-      // 修复 Gemini 跳转不稳定：有时候第一次没滚过去，延时再滚一次
-      setTimeout(() => {
+      // 修复 Gemini 等动态页面中元素 ID 丢失或 DOM 重建的问题
+      if (!target || !document.body.contains(target)) {
+        // 尝试强制刷新一次 DOM 解析
+        if (currentPlatform === 'chatgpt') parseChatGPT();
+        else if (currentPlatform === 'gemini') parseGemini();
+        else if (currentPlatform === 'claude') parseClaude();
+
+        // 尝试通过文本内容重新定位元素
+        const newItem = tocItems.find(t => t.text === item.text);
+        if (newItem) {
+          target = document.getElementById(newItem.id);
+        }
+      }
+
+      if (target) {
+        // 使用 block: 'start' 确保滚动到元素顶部（第一行）
         target.scrollIntoView({ behavior: 'auto', block: 'start' });
-      }, 150);
+        // 高亮一下
+        highlightActive(div);
+
+        // 修复 Gemini 跳转不稳定：有时候第一次没滚过去，延时再滚一次
+        setTimeout(() => {
+          target.scrollIntoView({ behavior: 'auto', block: 'start' });
+        }, 150);
+      }
+    } catch (err) {
+      console.error('[AI Chat TOC] click handler failed:', err);
     }
   };
 }
@@ -1176,7 +1279,7 @@ function exportToImage(selectedIndices, conversationGroups) {
 
   if (!html2canvasLib) {
     console.error('[AI Chat TOC] html2canvas not loaded');
-    alert('图片生成库未加载，请刷新页面重试');
+    alert('Image library not loaded, please refresh the page and retry / 图片生成库未加载，请刷新页面重试');
     return;
   }
 
@@ -1211,7 +1314,7 @@ function exportToImage(selectedIndices, conversationGroups) {
   html += `
     <div style="text-align: center; margin-bottom: 40px; padding-bottom: 24px; border-bottom: 2px solid #e5e5e5;">
       <h1 style="font-size: 24px; font-weight: 700; color: #1a1a1a; margin: 0 0 8px 0; font-family: inherit;">${escapeHtml(pageTitle)}</h1>
-      <p style="font-size: 14px; color: #6b7280; margin: 0; font-family: inherit;">导出时间：${new Date().toLocaleString()}</p>
+      <p style="font-size: 14px; color: #6b7280; margin: 0; font-family: inherit;">Export time: / 导出时间：${new Date().toLocaleString()}</p>
     </div>
   `;
 
@@ -1242,7 +1345,7 @@ function exportToImage(selectedIndices, conversationGroups) {
           <div style="display: flex; gap: 12px; padding-left: 44px; margin-top: 16px;">
             <div style="width: 28px; height: 28px; border-radius: 50%; background: #10b981; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; flex-shrink: 0; margin-top: 2px;">🤖</div>
             <div style="flex: 1;">
-              <div style="font-size: 12px; color: #6b7280; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; font-family: inherit;">${aiLabel} 回复</div>
+              <div style="font-size: 12px; color: #6b7280; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; font-family: inherit;">${aiLabel} Reply / 回复</div>
               <div style="font-size: 14px; color: #374151; line-height: 1.6; white-space: pre-wrap; word-break: break-word; font-family: inherit;">${escapeHtml(aiText)}</div>
             </div>
           </div>
@@ -1259,7 +1362,7 @@ function exportToImage(selectedIndices, conversationGroups) {
   // 显示 loading 状态
   const loadingDiv = document.createElement('div');
   loadingDiv.id = 'ai-toc-image-loading';
-  loadingDiv.innerHTML = '<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.8);color:white;padding:20px 40px;border-radius:12px;font-size:14px;z-index:99999;">正在生成图片...</div>';
+  loadingDiv.innerHTML = '<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.8);color:white;padding:20px 40px;border-radius:12px;font-size:14px;z-index:99999;">Generating image... / 正在生成图片...</div>';
   document.body.appendChild(loadingDiv);
 
   // 使用 html2canvas 生成图片
@@ -1273,26 +1376,36 @@ function exportToImage(selectedIndices, conversationGroups) {
       width: 800,
       ignoreElements: (el) => el.id === 'ai-toc-image-loading'
     }).then(canvas => {
-      // 下载图片
+      // 清理辅助元素（无论下载是否成功都先移除，避免任何情况下遮罩残留）
+      const cleanup = () => {
+        if (loadingDiv.parentNode) loadingDiv.parentNode.removeChild(loadingDiv);
+        if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
+      };
+
+      // 下载图片（toBlob 回调里防御 blob 为 null 等异常）
       canvas.toBlob(blob => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `chat-export-${new Date().toISOString().slice(0,10)}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        try {
+          if (!blob) throw new Error('canvas.toBlob returned null / 返回空');
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `chat-export-${new Date().toISOString().slice(0, 10)}.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          console.error('[AI Chat TOC] 图片下载失败:', e);
+          alert('Image download failed: / 图片下载失败：' + e.message);
+        }
       });
 
-      // 清理
-      document.body.removeChild(loadingDiv);
-      document.body.removeChild(wrapper);
+      cleanup();
     }).catch(err => {
-      console.error('导出图片失败:', err);
-      alert('导出图片失败：' + err.message);
-      document.body.removeChild(loadingDiv);
-      document.body.removeChild(wrapper);
+      console.error('[AI Chat TOC] 导出图片失败:', err);
+      alert('Export image failed: / 导出图片失败：' + err.message);
+      if (loadingDiv.parentNode) loadingDiv.parentNode.removeChild(loadingDiv);
+      if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
     });
   }, 100);
 }
@@ -1302,7 +1415,7 @@ function showImagePreview(selectedIndices, conversationGroups) {
   // 获取选中的索引
   const indices = selectedIndices || [];
   if (indices.length === 0) {
-    alert('请至少选择一个对话');
+    alert('Please select at least one conversation / 请至少选择一个对话');
     return;
   }
 
@@ -1323,7 +1436,7 @@ function showImagePreview(selectedIndices, conversationGroups) {
   html += `
     <div style="text-align:center;margin-bottom:40px;padding-bottom:24px;border-bottom:2px solid #e5e5e5;">
       <h1 style="font-size:24px;font-weight:700;color:#1a1a1a;margin:0 0 8px 0;">${escapeHtml(pageTitle)}</h1>
-      <p style="font-size:14px;color:#6b7280;margin:0;">导出时间：${new Date().toLocaleString()}</p>
+      <p style="font-size:14px;color:#6b7280;margin:0;">Export time: / 导出时间：${new Date().toLocaleString()}</p>
     </div>
   `;
 
@@ -1349,7 +1462,7 @@ function showImagePreview(selectedIndices, conversationGroups) {
           <div style="display:flex;gap:12px;padding-left:44px;margin-top:16px;">
             <div style="width:28px;height:28px;border-radius:50%;background:#10b981;display:flex;align-items:center;justify-content:center;color:white;font-size:14px;flex-shrink:0;margin-top:2px;">🤖</div>
             <div style="flex:1;">
-              <div style="font-size:12px;color:#6b7280;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">${aiLabel} 回复</div>
+              <div style="font-size:12px;color:#6b7280;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">${aiLabel} Reply / 回复</div>
               <div style="font-size:14px;color:#374151;line-height:1.6;white-space:pre-wrap;word-break:break-word;">${escapeHtml(aiText)}</div>
             </div>
           </div>
@@ -1367,14 +1480,14 @@ function showImagePreview(selectedIndices, conversationGroups) {
 
   // 关闭按钮
   const closeBtn = document.createElement('button');
-  closeBtn.textContent = '关闭预览';
+  closeBtn.textContent = 'Close / 关闭预览';
   closeBtn.style.cssText = 'position:absolute;top:20px;right:20px;padding:12px 24px;background:#3b82f6;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer;';
   closeBtn.onclick = () => preview.remove();
   preview.appendChild(closeBtn);
 
   // 导出按钮
   const exportBtn = document.createElement('button');
-  exportBtn.textContent = '导出图片';
+  exportBtn.textContent = 'Export Image / 导出图片';
   exportBtn.style.cssText = 'position:absolute;top:20px;right:140px;padding:12px 24px;background:#10b981;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer;';
   exportBtn.onclick = () => {
     preview.remove();
