@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>AI Chat TOC — 上架文案</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif;
+    background: #f5f5f7;
+    color: #1d1d1f;
+    margin: 0;
+    padding: 32px 16px;
+    line-height: 1.6;
+  }
+  .container { max-width: 880px; margin: 0 auto; }
+  h1 {
+    font-size: 24px;
+    margin: 0 0 8px;
+  }
+  .subtitle {
+    color: #6e6e73;
+    margin: 0 0 32px;
+    font-size: 14px;
+  }
+  .section {
+    background: #fff;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 1px 6px rgba(0,0,0,0.04);
+  }
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px;
+    background: #fafafa;
+    border-bottom: 1px solid #e8e8ed;
+  }
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1d1d1f;
+  }
+  .section-meta {
+    font-size: 12px;
+    color: #6e6e73;
+  }
+  .copy-btn {
+    background: #0071e3;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .copy-btn:hover { background: #0077ed; }
+  .copy-btn.copied { background: #34c759; }
+  pre {
+    margin: 0;
+    padding: 20px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #1d1d1f;
+    background: #fff;
+    max-height: 480px;
+    overflow: auto;
+  }
+  .hint {
+    font-size: 12px;
+    color: #8e8e93;
+    margin: 4px 0 0;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <h1>AI Chat TOC — 上架文案</h1>
+  <p class="subtitle">点右上角「复制」按钮即可,格式不会丢失。后续要新增/修改文案,告诉我「在这里更新」即可。</p>
+
+  <!-- =================================================== -->
+  <!-- 单一用途说明 / Single Purpose -->
+  <!-- =================================================== -->
+  <div class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-title">🎯 单一用途说明 / Single Purpose</div>
+        <div class="section-meta">填到「Single purpose」字段 · 一句话讲清核心用途</div>
+      </div>
+      <button class="copy-btn" data-target="single-purpose">复制</button>
+    </div>
+<pre id="single-purpose">Provides an in-page table of contents to navigate AI chat conversations. / 在 AI 对话页面提供目录,用于导航长对话。</pre>
+  </div>
+
+  <!-- =================================================== -->
+  <!-- 数据使用 & 远程代码勾选指南 -->
+  <!-- =================================================== -->
+  <div class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-title">📋 隐私实践 & 远程代码 — 后台勾选指南</div>
+        <div class="section-meta">不是文案,是告诉你后台每个选项怎么选</div>
+      </div>
+    </div>
+<pre id="privacy-guide">━━━ Remote Code / 远程代码 ━━━
+"Are you using remote code?"  →  No / 不使用
+
+理由:html2canvas 是本地打包,不是 CDN;无 eval/Function;无远程 script 注入。
+
+━━━ Data Types / 收集的数据类别 ━━━
+全部「不勾选」。
+
+理由:Chrome 政策对"收集 collect"的定义是"将数据传输到扩展之外"。
+本扩展 100% 本地处理,无 fetch/XHR/WebSocket,所有项都不勾。
+
+具体而言以下都不勾:
+  ❌ Personally identifiable information
+  ❌ Health information
+  ❌ Financial and payment information
+  ❌ Authentication information
+  ❌ Personal communications
+  ❌ Location
+  ❌ Web history
+  ❌ User activity
+  ❌ Website content
+
+━━━ Certifications / 使用条款声明 ━━━
+三项全部「勾选」(均如实成立):
+
+  ✅ I do not sell or transfer user data to third parties, outside of the approved use cases.
+     (不向第三方出售或转让用户数据)
+
+  ✅ I do not use or transfer user data for purposes that are unrelated to my item's single purpose.
+     (不将数据用于与单一用途无关的目的)
+
+  ✅ I do not use or transfer user data to determine creditworthiness or for lending purposes.
+     (不将数据用于信用评估或放贷)
+
+━━━ Privacy Policy URL / 隐私政策链接 ━━━
+建议提供(数据全不勾时通常不强制,但审核员看到三个 host 权限可能主动要)。
+需要时告诉我「写隐私政策」,我给你一份 HTML 放 GitHub Pages 即用。</pre>
+  </div>
+
+  <!-- =================================================== -->
+  <!-- 详细说明 / Detailed description -->
+  <!-- =================================================== -->
+  <div class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-title">📄 详细说明 / Detailed description</div>
+        <div class="section-meta">填到 Web Store 的「详细说明」框 · 上限 16000 字符</div>
+      </div>
+      <button class="copy-btn" data-target="desc-detailed">复制</button>
+    </div>
+<pre id="desc-detailed">Side TOC navigation for AI chat pages — adds a right-side table of contents to ChatGPT, Gemini and Claude conversations, so you can scan and jump to any of your questions in long chats.
+
+为 AI 对话页面添加右侧目录导航,在 ChatGPT、Gemini、Claude 的长对话里快速浏览和跳转到任意一个你提的问题。
+
+━━━ Features / 功能 ━━━
+
+• Right-side floating TOC — auto-detects your questions in the conversation and lists them as anchors. Click to jump.
+  右侧悬浮目录 — 自动识别你的提问并列为锚点,点击即跳转。
+
+• Bookmark important questions — click the star icon on the left to mark key questions; bookmarks persist across sessions.
+  收藏重要提问 — 点击左侧星标标记关键问题,收藏状态跨会话保留。
+
+• Export to Markdown — export the whole conversation, or only selected Q&amp;A pairs, in Markdown format (Obsidian-friendly).
+  导出 Markdown — 整段对话或选中的问答对,导出为 Markdown 格式(适配 Obsidian)。
+
+• Export as image — render the conversation as a styled PNG image with a clean layout. Preview before exporting.
+  导出为图片 — 将对话渲染为排版精美的 PNG 图片,导出前可预览。
+
+• Pin the panel — keep the TOC panel always expanded for long sessions.
+  固定面板 — 长时间使用时保持目录常驻展开。
+
+━━━ Supported platforms / 支持平台 ━━━
+
+• ChatGPT (chatgpt.com)
+• Gemini (gemini.google.com)
+• Claude (claude.ai / claude.com)
+
+━━━ Privacy / 隐私 ━━━
+
+This extension runs 100% locally in your browser. It does NOT collect, store, or transmit any of your conversation data. No external servers, no analytics, no tracking. Your chats stay yours.
+
+本扩展 100% 在你的浏览器本地运行。不收集、不存储、不上传任何对话数据。无外部服务器、无埋点、无追踪。你的对话只属于你。
+
+━━━ Permissions / 权限说明 ━━━
+
+The extension only requests host access to the three AI chat domains above, in order to inject the TOC panel. No tabs, storage, cookies, history, or any other permissions are requested.
+
+扩展仅请求对上述三个 AI 对话域名的页面访问权限,用于注入目录面板。不请求 tabs、storage、cookies、history 或任何其他权限。</pre>
+  </div>
+
+</div>
+
+<script>
+document.querySelectorAll('.copy-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const targetId = btn.getAttribute('data-target');
+    const text = document.getElementById(targetId).innerText;
+    try {
+      await navigator.clipboard.writeText(text);
+      const orig = btn.textContent;
+      btn.textContent = '已复制 ✓';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.classList.remove('copied');
+      }, 1500);
+    } catch (e) {
+      alert('复制失败:' + e.message);
+    }
+  });
+});
+</script>
+</body>
+</html>
