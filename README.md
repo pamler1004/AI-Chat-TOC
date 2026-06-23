@@ -6,7 +6,11 @@
   <p><strong>AI 对话目录导航 · Side TOC navigation for AI chats</strong></p>
   <p>为 ChatGPT、Gemini、Claude 的长对话添加右侧悬浮目录,一键跳转到任意一条你的提问。</p>
 
-  <!-- Chrome Web Store 徽章,审核通过后补充链接 -->
+  <a href="https://chromewebstore.google.com/detail/ai-chat-toc-ai-%E5%AF%B9%E8%AF%9D%E7%9B%AE%E5%BD%95%E5%AF%BC%E8%88%AA/ogjecajdbalhobcpigopjjpjkbhkeaak">
+    <img src="https://img.shields.io/chrome-web-store/v/ogjecajdbalhobcpigopjjpjkbhkeaak.svg?label=Chrome%20Web%20Store&color=blue" alt="Chrome Web Store Version">
+  </a>
+  <img src="https://img.shields.io/chrome-web-store/users/ogjecajdbalhobcpigopjjpjkbhkeaak.svg?label=Users" alt="Chrome Web Store Users">
+  <img src="https://img.shields.io/chrome-web-store/rating/ogjecajdbalhobcpigopjjpjkbhkeaak.svg?label=Rating" alt="Chrome Web Store Rating">
 </div>
 
 ---
@@ -31,9 +35,10 @@
 
 ## 📦 安装
 
-### 方式一:Chrome Web Store(推荐,审核通过后)
+### 方式一:Chrome Web Store(推荐)
 
-> v1.0.0 已于 2026-06-20 提交审核,上线后在此补充商店链接。
+直接从商店安装,自动更新:
+👉 [点击安装](https://chromewebstore.google.com/detail/ai-chat-toc-ai-%E5%AF%B9%E8%AF%9D%E7%9B%AE%E5%BD%95%E5%AF%BC%E8%88%AA/ogjecajdbalhobcpigopjjpjkbhkeaak)
 
 ### 方式二:开发者模式加载(立即体验)
 
