@@ -1,0 +1,8 @@
+{
+  "extName": {
+    "message": "AI Chat TOC - AI Conversation Navigation"
+  },
+  "extDescription": {
+    "message": "Adds a side table of contents to ChatGPT, Gemini and Claude conversations, with bookmarks and export tools."
+  }
+}

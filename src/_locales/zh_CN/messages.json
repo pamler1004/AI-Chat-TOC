@@ -1,0 +1,8 @@
+{
+  "extName": {
+    "message": "AI Chat TOC - AI 对话目录导航"
+  },
+  "extDescription": {
+    "message": "为 ChatGPT、Gemini、Claude 对话添加右侧目录导航，支持收藏与导出。"
+  }
+}

@@ -153,25 +153,9 @@
   box-shadow: none !important;
 }
 
-/* AI 回复 - 缩进一级，显示层级关系 */
-.ai-toc-item.ai {
-  padding: 6px 8px 6px 52px !important; /* 额外缩进 16px */
-  font-size: 13px !important; /* 稍微小一点 */
-  opacity: 0.85 !important; /* 稍微透明一点 */
-  background: transparent !important;
-  background-color: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-}
-
 /* 容器收起时的列表项 */
 #ai-toc-container:not(:hover):not(.pinned) .ai-toc-item {
   padding: 6px 8px 6px 24px !important; /* 收起时减少左侧 padding */
-}
-
-/* 容器收起时的 AI 回复 */
-#ai-toc-container:not(:hover):not(.pinned) .ai-toc-item.ai {
-  padding: 6px 8px 6px 28px !important; /* 收起时 AI 回复稍微缩进 */
 }
 
 /* 左侧收藏区域 - 覆盖整个左侧图标区域，便于点击（只对用户消息） */
@@ -184,19 +168,6 @@
   height: 100% !important;
   cursor: pointer !important;
   z-index: 1 !important;
-}
-
-/* AI 回复没有收藏功能 */
-.ai-toc-item.ai::after {
-  content: '' !important;
-  position: absolute !important;
-  left: 0 !important;
-  top: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  cursor: pointer !important;
-  z-index: 1 !important;
-  background: transparent !important;
 }
 
 #ai-toc-container:hover .ai-toc-item,
@@ -223,19 +194,6 @@
   z-index: 2 !important; /* 在收藏区域上方 */
 }
 
-/* AI 回复没有收藏图标 */
-.ai-toc-item.ai::before {
-  content: '└' !important; /* 使用角落符号表示从属 */
-  position: absolute !important;
-  left: 36px !important; /* 缩进位置 */
-  top: 50% !important;
-  transform: translateY(-50%) !important;
-  font-size: 14px !important;
-  color: #5f6368 !important;
-  opacity: 0.5 !important;
-  z-index: 2 !important;
-}
-
 /* 收起时，已收藏状态 - 黄色圆点 */
 #ai-toc-container:not(:hover):not(.pinned) .ai-toc-item.user.bookmarked::before {
   content: '●' !important;
@@ -250,13 +208,6 @@
   left: 8px !important; /* 对齐左边 padding */
   font-size: 16px !important;
   opacity: 0.4 !important;
-}
-
-/* AI 回复的角落符号在展开时也左移 */
-#ai-toc-container:hover .ai-toc-item.ai::before,
-#ai-toc-container.pinned .ai-toc-item.ai::before {
-  left: 20px !important;
-  opacity: 0.3 !important;
 }
 
 /* 展开或固定时，已收藏状态 - 黄色实心星 (提高优先级，放在最后) */
@@ -276,11 +227,6 @@
 
 .ai-toc-item.user.bookmarked:hover::before {
   opacity: 1 !important;
-}
-
-/* AI 回复悬停时角落符号高亮 */
-.ai-toc-item.ai:hover::before {
-  opacity: 0.6 !important;
 }
 
 /* 导出和固定按钮 */
@@ -314,188 +260,256 @@
   gap: 8px !important;
 }
 
-/* ==================== 导出选择对话框 ==================== */
+/* ==================== 导出选择对话框（全部 !important 防宿主页面样式污染）==================== */
 #ai-toc-export-dialog {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  z-index: 10000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  z-index: 10000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  box-sizing: border-box !important;
+  /* 基准字体/字距/大小写，防止继承宿主页面的奇怪排版 */
+  font-family: 'Söhne', 'ui-sans-serif', 'system-ui', -apple-system, 'Segoe UI', Roboto, Ubuntu, Cantarell, 'Noto Sans', sans-serif, 'Helvetica Neue', Arial !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+  color: #ececf1 !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  font-weight: 400 !important;
 }
 
-.export-dialog-content {
-  background: rgba(30, 30, 30, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 20px;
-  width: 90%;
-  max-width: 600px;
-  max-height: 80vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+#ai-toc-export-dialog .export-dialog-content {
+  background: rgba(30, 30, 30, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 12px !important;
+  padding: 20px !important;
+  width: 90% !important;
+  max-width: 600px !important;
+  max-height: 80vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  color: #ececf1 !important;
 }
 
-.export-dialog-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+#ai-toc-export-dialog .export-dialog-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  margin: 0 0 16px 0 !important;
+  padding: 0 0 12px 0 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
-.export-dialog-header h3 {
-  margin: 0;
-  font-size: 14px;
-  color: #9b9b9b;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+#ai-toc-export-dialog .export-dialog-header h3 {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 14px !important;
+  color: #9b9b9b !important;
+  font-weight: 500 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  line-height: 1.5 !important;
 }
 
-.export-controls {
-  display: flex;
-  gap: 6px;
+#ai-toc-export-dialog .export-controls {
+  display: flex !important;
+  gap: 6px !important;
+  flex-wrap: wrap !important;
 }
 
-.export-btn {
-  padding: 5px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 6px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-  background: rgba(255, 255, 255, 0.05);
-  color: #c5c5d2;
+/* 按钮通用样式 —— 强制覆盖宿主页面对 button 的全局样式 */
+#ai-toc-export-dialog .export-btn {
+  all: revert !important;
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 5px 10px !important;
+  margin: 0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 6px !important;
+  font-family: inherit !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  line-height: 1.5 !important;
+  cursor: pointer !important;
+  transition: background 0.2s, border-color 0.2s, color 0.2s !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #c5c5d2 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  white-space: nowrap !important;
+  height: auto !important;
+  min-height: 0 !important;
+  text-indent: 0 !important;
 }
 
-.export-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
+#ai-toc-export-dialog .export-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #fff !important;
 }
 
-.export-btn-primary {
-  background: #3b82f6;
-  border-color: #3b82f6;
-  color: #fff;
+#ai-toc-export-dialog .export-btn-primary {
+  background: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+  color: #fff !important;
 }
 
-.export-btn-primary:hover {
-  background: #2563eb;
-  border-color: #2563eb;
+#ai-toc-export-dialog .export-btn-primary:hover {
+  background: #2563eb !important;
+  border-color: #2563eb !important;
+  color: #fff !important;
 }
 
-.export-btn-secondary {
-  background: transparent;
+#ai-toc-export-dialog .export-btn-secondary {
+  background: transparent !important;
 }
 
-.export-items-container {
-  max-height: 400px;
-  overflow-y: auto;
-  margin-bottom: 16px;
-  padding-right: 4px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+#ai-toc-export-dialog .export-items-container {
+  max-height: 400px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  margin: 0 0 16px 0 !important;
+  padding-right: 4px !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent !important;
+  display: block !important;
 }
 
-.export-item {
-  margin-bottom: 8px;
+#ai-toc-export-dialog .export-item {
+  margin: 0 0 8px 0 !important;
+  padding: 0 !important;
+  display: block !important;
 }
 
-.export-item-label {
-  display: flex;
-  align-items: center;
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
+#ai-toc-export-dialog .export-item-label {
+  display: flex !important;
+  align-items: flex-start !important;
+  padding: 10px 12px !important;
+  margin: 0 !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  transition: background 0.2s, border-color 0.2s !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
 }
 
-.export-item-label:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.12);
+#ai-toc-export-dialog .export-item-label:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
-/* 自定义复选框样式 - 使用 SVG 背景确保跨平台一致 */
-.export-checkbox {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 18px;
-  height: 18px;
-  border: 1.5px solid rgba(255, 255, 255, 0.35);
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.03);
-  cursor: pointer;
-  margin-right: 12px;
-  position: relative;
-  transition: all 0.2s;
-  flex-shrink: 0;
-  outline: none;
+/* 自定义复选框 —— 强制 appearance:none，覆盖宿主 input 全局样式 */
+#ai-toc-export-dialog .export-checkbox {
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  box-sizing: border-box !important;
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.35) !important;
+  border-radius: 5px !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  cursor: pointer !important;
+  margin: 0 12px 0 0 !important;
+  padding: 0 !important;
+  position: relative !important;
+  transition: background 0.2s, border-color 0.2s !important;
+  flex-shrink: 0 !important;
+  outline: none !important;
+  vertical-align: middle !important;
 }
 
-.export-checkbox:hover {
-  border-color: rgba(255, 255, 255, 0.6);
-  background: rgba(255, 255, 255, 0.08);
+#ai-toc-export-dialog .export-checkbox:hover {
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
 }
 
-.export-checkbox:checked {
-  background: #3b82f6;
-  border-color: #3b82f6;
-  /* 使用 SVG 数据 URI 确保跨平台一致 */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
-  background-size: 14px;
-  background-position: center;
-  background-repeat: no-repeat;
+#ai-toc-export-dialog .export-checkbox:checked {
+  background: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-size: 14px !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
 }
 
-.export-item-content {
-  flex: 1;
-  min-width: 0;
+#ai-toc-export-dialog .export-item-content {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  display: block !important;
 }
 
-.export-item-user {
-  font-size: 13px;
-  color: #ececf1;
-  margin-bottom: 4px;
-  white-space: normal; /* 允许多行 */
-  overflow: visible;
-  line-height: 1.4;
+#ai-toc-export-dialog .export-item-user {
+  font-size: 13px !important;
+  color: #ececf1 !important;
+  margin: 0 0 4px 0 !important;
+  padding: 0 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  line-height: 1.4 !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
 }
 
-.export-item-ai {
-  font-size: 12px;
-  color: #5f6368;
-  white-space: normal; /* 允许多行 */
-  overflow: visible;
-  line-height: 1.3;
+#ai-toc-export-dialog .export-item-ai {
+  font-size: 12px !important;
+  color: #5f6368 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  line-height: 1.3 !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
 }
 
-.export-dialog-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+#ai-toc-export-dialog .export-dialog-footer {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  padding: 12px 0 0 0 !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
-.export-count {
-  font-size: 12px;
-  color: #5f6368;
+#ai-toc-export-dialog .export-count {
+  font-size: 12px !important;
+  color: #5f6368 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.5 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
 }
 
-.export-actions {
-  display: flex;
-  gap: 6px;
+#ai-toc-export-dialog .export-actions {
+  display: flex !important;
+  gap: 6px !important;
+  flex-wrap: wrap !important;
 }
 
 /* ==================== 导出为图片 - 隐藏容器 ==================== */

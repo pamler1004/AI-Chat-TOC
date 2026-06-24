@@ -4,7 +4,7 @@
   <img src="src/icon.png" alt="Logo" width="128" height="128">
 
   <p><strong>AI 对话目录导航 · Side TOC navigation for AI chats</strong></p>
-  <p>为 ChatGPT、Gemini、Claude 的长对话添加右侧悬浮目录,一键跳转到任意一条你的提问。</p>
+  <p>为 ChatGPT、Gemini、Claude 的长对话添加右侧悬浮目录,支持快速跳转、收藏重点提问和导出。</p>
 
   <a href="https://chromewebstore.google.com/detail/ai-chat-toc-ai-%E5%AF%B9%E8%AF%9D%E7%9B%AE%E5%BD%95%E5%AF%BC%E8%88%AA/ogjecajdbalhobcpigopjjpjkbhkeaak">
     <img src="https://img.shields.io/chrome-web-store/v/ogjecajdbalhobcpigopjjpjkbhkeaak.svg?label=Chrome%20Web%20Store&color=blue" alt="Chrome Web Store Version">
@@ -20,9 +20,10 @@
 - **📑 右侧悬浮目录** — 自动识别你的每一条提问并生成锚点,点击即跳转。至少 2 条提问时才出现,不打扰单轮对话。
 - **⭐ 收藏关键提问** — 点击星标标记重要问题,收藏状态跨会话保留(浏览器本地存储)。
 - **📝 Markdown 导出** — 支持单选 / 多选 / 全选 / 反选,Obsidian 友好,完整保留代码块、列表、加粗等格式。
-- **🖼️ 图片导出** — 将对话渲染为排版精美的 PNG,导出前可预览。
-- **📌 固定面板** — 长会话时一键固定常驻;默认 hover 展开、移开收起。
-- **🌐 三平台一致体验** — ChatGPT / Gemini / Claude 统一的深色毛玻璃 UI。
+- **🖼️ 图片导出** — 将对话渲染为 PNG,导出前可预览;使用 iframe 隔离渲染,避免被宿主页面样式和巨量 DOM 拖慢。
+- **📌 固定面板** — 长会话时一键固定常驻;导出弹窗 / 预览打开时自动让位,避免遮挡。
+- **🌐 中英双语** — 界面、导出内容和扩展名称 / 描述跟随浏览器语言自动切换。
+- **🌐 三平台一致体验** — ChatGPT / Gemini / Claude 统一的深色毛玻璃 UI,并提供选择器多级回退以应对平台改版。
 - **🔒 100% 本地** — 无服务器、无埋点、无追踪,对话数据绝不离开浏览器。
 
 ## 🌐 支持平台
@@ -47,7 +48,7 @@
 3. 点击 **加载已解压的扩展程序**,选择仓库下的 **`src/` 目录**(包含 `manifest.json`)
 4. 打开任一支持的 AI 对话页,发 2 条以上提问,右侧即出现目录
 
-> 💡 加载的是 `src/` 目录,**不是**项目根目录。
+> 💡 加载的是 `src/` 目录,**不是**项目根目录,也不是 `dist/` 目录或 zip 文件。
 
 ## 🛠️ 开发
 
@@ -56,6 +57,9 @@
 ```
 src/
 ├── manifest.json       # 扩展清单
+├── _locales/           # Chrome 原生 i18n(扩展名称 / 描述)
+│   ├── en/messages.json
+│   └── zh_CN/messages.json
 ├── content.js          # 全部逻辑(注入三平台)
 ├── styles.css          # 面板样式
 ├── icon.png            # 扩展图标
@@ -77,9 +81,9 @@ node --check src/content.js
 node --check src/content.js
 
 # 2. 从 src/ 压缩为 zip(zip 内顶层即 manifest.json,不能多套一层 src/ 目录)
-cd src && zip -r ../dist/ai-chat-toc-1.0.0.zip . && cd ..
+(cd src && zip -r ../dist/ai-chat-toc-1.0.2.zip . -x "*.DS_Store" -x "*/.DS_Store")
 
-# 3. 更新 manifest.json 的 version 后重新打包,产物输出到 dist/
+# 3. 上传 dist/ai-chat-toc-*.zip 到 Chrome Web Store 开发者后台
 ```
 
 上传 `dist/ai-chat-toc-*.zip` 到 [Chrome Web Store 开发者后台](https://chrome.google.com/webstore/devconsole)。
@@ -102,7 +106,7 @@ ai-chat-toc/
 本扩展**不收集、不存储、不上传**任何用户数据:
 
 - 无 `fetch` / `XHR` / `WebSocket` 等任何网络请求(图片导出用的 html2canvas 也是本地打包)
-- 仅请求三个 AI 对话域名的 host 权限,用于注入目录面板
+- 仅在 ChatGPT / Gemini / Claude 页面注入目录面板
 - 不申请 `tabs` / `storage` / `cookies` / `history` 等任何其他权限
 - 收藏状态通过浏览器 `localStorage` 保存,仅限本机
 
@@ -112,9 +116,11 @@ ai-chat-toc/
 
 - **Manifest V3** — 符合最新 Chrome 扩展标准
 - **原生 JavaScript** — 零运行时依赖
-- **MutationObserver** — 实时监听 DOM 变化,防抖 + 结构变化过滤
+- **Chrome i18n (`_locales`)** — 扩展名称 / 描述跟随浏览器语言
+- **MutationObserver** — 实时监听 DOM 结构和流式文本变化,防抖更新目录
 - **SPA 路由钩子** — 拦截 `pushState` / `replaceState` / `popstate`,适配 Claude 等单页应用
-- **stableId DOM diff** — 用稳定哈希匹配而非索引,避免重渲染闪烁
+- **stableId DOM diff** — 用稳定哈希 + 出现次数后缀匹配,避免重复提问撞 ID 和重渲染闪烁
+- **iframe 隔离 html2canvas** — 图片导出在干净文档中渲染,避免 clone 宿主页面导致卡死
 - **XSS 防护** — 全链路 `escapeHtml` / `textContent`
 
 ## 📝 许可证

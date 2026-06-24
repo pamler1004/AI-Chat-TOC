@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "AI Chat TOC - AI 对话目录导航",
-  "version": "1.0.1",
-  "description": "Side TOC navigation for ChatGPT, Gemini and Claude / 为 ChatGPT、Gemini、Claude 添加右侧目录导航",
+  "name": "__MSG_extName__",
+  "version": "1.0.2",
+  "description": "__MSG_extDescription__",
+  "default_locale": "en",
   "icons": {
     "16": "icon.png",
     "48": "icon.png",
