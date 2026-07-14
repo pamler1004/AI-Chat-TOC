@@ -57,16 +57,8 @@ const I18N = {
     invert: '反选',
     selected: '已选择',
     cancel: '取消',
-    preview: '预览',
-    exportImage: '导出为图片',
     exportSelected: '导出为MD文档',
     selectAtLeastOne: '请至少选择一个对话',
-    imgLibNotLoaded: '图片生成库未加载，请刷新页面重试',
-    imgGenerating: '正在生成图片…',
-    imgDownloadFailed: '图片下载失败：',
-    imgExportFailed: '导出图片失败：',
-    closePreview: '关闭预览',
-    exportImageBtn: '导出图片',
     exportTime: '导出时间：',
     platformUnknown: '无法识别当前平台，导出失败。',
     extractImprecise: '无法精确提取对话结构，仅导出目录项。',
@@ -86,16 +78,8 @@ const I18N = {
     invert: 'Invert',
     selected: 'Selected',
     cancel: 'Cancel',
-    preview: 'Preview',
-    exportImage: 'Export as Image',
     exportSelected: 'Export as Markdown',
     selectAtLeastOne: 'Please select at least one conversation',
-    imgLibNotLoaded: 'Image library not loaded, please refresh the page and retry',
-    imgGenerating: 'Generating image…',
-    imgDownloadFailed: 'Image download failed: ',
-    imgExportFailed: 'Export image failed: ',
-    closePreview: 'Close',
-    exportImageBtn: 'Export Image',
     exportTime: 'Export time: ',
     platformUnknown: 'Cannot identify the current platform, export failed.',
     extractImprecise: 'Could not extract conversation structure precisely, only TOC items exported.',
@@ -858,37 +842,19 @@ function showExportDialog() {
   const dialog = document.createElement('div');
   dialog.id = 'ai-toc-export-dialog';
 
-  // 使用当前的 tocItems 生成选项
-  const conversations = tocItems.map((item, index) => ({
-    index,
-    id: item.stableId,
-    text: item.text,
-    type: item.type,
-    elementId: item.id
-  }));
-
-  // 构建对话列表（按用户提问分组）
-  const conversationGroups = [];
-  let currentGroup = null;
-
-  conversations.forEach(conv => {
-    if (conv.type === 'user') {
-      currentGroup = { user: conv, aiReplies: [] };
-      conversationGroups.push(currentGroup);
-    } else if (currentGroup) {
-      currentGroup.aiReplies.push(conv);
-    }
-  });
+  // 从 DOM 提取完整的对话分组（用户全文 + AI 全文），列表 / Markdown / 图片共用同一份数据
+  // 避免使用目录摘要（只取首行）导致导出内容过短
+  const conversationGroups = getConversationGroups();
 
   // 生成对话框 HTML
   let itemsHtml = '';
   const aiLabel = getAILabel();
   conversationGroups.forEach((group, groupIndex) => {
-    const userText = group.user.text.substring(0, 80) + (group.user.text.length > 80 ? '...' : '');
+    const userText = truncateForImage(group.user.text, 80);
     const aiCount = group.aiReplies.length;
     // 获取第一条 AI 回复的前 60 个字符作为预览
     const aiPreview = aiCount > 0
-      ? group.aiReplies[0].text.substring(0, 60) + (group.aiReplies[0].text.length > 60 ? '...' : '')
+      ? truncateForImage(group.aiReplies[0], 60)
       : t('noReply');
     itemsHtml += `
       <div class="export-item" data-group-index="${groupIndex}">
@@ -920,8 +886,6 @@ function showExportDialog() {
         <span class="export-count">${t('selected')}: <span id="export-selected-count">${conversationGroups.length}</span> / ${conversationGroups.length}</span>
         <div class="export-actions">
           <button id="export-cancel" class="export-btn export-btn-secondary">${t('cancel')}</button>
-          <button id="export-preview" class="export-btn export-btn-secondary">${t('preview')}</button>
-          <button id="export-image" class="export-btn export-btn-secondary">${t('exportImage')}</button>
           <button id="export-confirm" class="export-btn export-btn-primary">${t('exportSelected')}</button>
         </div>
       </div>
@@ -936,8 +900,6 @@ function showExportDialog() {
   const selectInverseBtn = dialog.querySelector('#export-select-inverse');
   const cancelBtn = dialog.querySelector('#export-cancel');
   const confirmBtn = dialog.querySelector('#export-confirm');
-  const exportImageBtn = dialog.querySelector('#export-image');
-  const previewBtn = dialog.querySelector('#export-preview');
   const checkboxes = dialog.querySelectorAll('.export-checkbox');
   const selectedCountEl = dialog.querySelector('#export-selected-count');
 
@@ -964,18 +926,13 @@ function showExportDialog() {
     closeExportDialog(dialog);
   };
 
-  // 收集当前勾选的对话组索引（预览/导出Markdown/导出图片共用）
+  // 收集当前勾选的对话组索引（导出 Markdown 用）
   const getSelectedIndices = () => {
     const indices = [];
     checkboxes.forEach((cb, index) => {
       if (cb.checked) indices.push(index);
     });
     return indices;
-  };
-
-  // 预览
-  previewBtn.onclick = () => {
-    showImagePreview(getSelectedIndices(), conversationGroups);
   };
 
   // 确认导出 Markdown
@@ -994,20 +951,6 @@ function showExportDialog() {
       // 导出选中的
       exportToMarkdown(selectedIndices);
     }
-  };
-
-  // 导出为图片
-  exportImageBtn.onclick = () => {
-    const selectedIndices = getSelectedIndices();
-
-    if (selectedIndices.length === 0) {
-      alert(t('selectAtLeastOne'));
-      return;
-    }
-
-    // 关闭对话框，然后导出；目录由 exportToImage 完成后恢复
-    dialog.remove();
-    exportToImage(selectedIndices, conversationGroups);
   };
 
   // 单个复选框变化
@@ -1044,57 +987,41 @@ function getAILabel() {
 }
 
 // 提取 ChatGPT 内容 (问答对)
-function extractChatGPTContent(selectedIndices = null) {
-  let md = '';
-  // 策略：不再依赖 article，直接查找所有消息元素
-  const messages = document.querySelectorAll('[data-message-author-role]');
-
-  if (messages.length > 0) {
-    // 按对话分组（用户消息 + 后续 AI 回复）
-    const conversationGroups = [];
-    let currentGroup = null;
-
-    messages.forEach(msg => {
-      const role = msg.getAttribute('data-message-author-role');
-      let text = msg.innerText || msg.textContent;
-      text = cleanChatText(text);
-
-      if (!text.trim()) return;
-
-      if (role === 'user') {
-        currentGroup = { user: { text }, aiReplies: [] };
-        conversationGroups.push(currentGroup);
-      } else if (currentGroup) {
-        currentGroup.aiReplies.push(text);
-      }
-    });
-
-    // 根据选中的索引导出
-    conversationGroups.forEach((group, index) => {
-      if (selectedIndices !== null && !selectedIndices.includes(index)) return;
-
-      md += `## 🙋 ${group.user.text}\n\n`;
-      group.aiReplies.forEach(aiText => {
-        md += `**🤖 ${getAILabel()} ${t('replyWord')}**:\n\n${formatForMarkdown(aiText)}\n\n`;
-        md += `---\n\n`;
-      });
-    });
-  } else {
-    // 兜底策略：使用之前的选择器
-    md += '> ⚠️ ' + t('extractImprecise') + '\n\n';
-    tocItems.forEach(item => {
-       md += `## Question\n\n${item.text}\n\n`;
-    });
+// ==================== 对话分组提取（导出列表 / Markdown 导出 共用）====================
+// 从 DOM 提取完整的对话分组：[{ user: { text }, aiReplies: [text, ...] }]
+// 这样列表、Markdown、图片用同一份数据，避免目录摘要（只取首行）导致导出内容过短
+function getConversationGroups() {
+  switch (currentPlatform) {
+    case 'chatgpt': return getChatGPTGroups();
+    case 'gemini': return getGeminiGroups();
+    case 'claude': return getClaudeGroups();
+    default: return [];
   }
-
-  return md;
 }
 
-// 提取 Gemini 内容
-function extractGeminiContent(selectedIndices = null) {
-  let md = '';
+function getChatGPTGroups() {
+  const messages = document.querySelectorAll('[data-message-author-role]');
+  const conversationGroups = [];
+  if (messages.length === 0) return conversationGroups;
 
-  // 获取所有用户消息和AI回复
+  let currentGroup = null;
+  messages.forEach(msg => {
+    const role = msg.getAttribute('data-message-author-role');
+    let text = msg.innerText || msg.textContent;
+    text = cleanChatText(text);
+    if (!text.trim()) return;
+
+    if (role === 'user') {
+      currentGroup = { user: { text }, aiReplies: [] };
+      conversationGroups.push(currentGroup);
+    } else if (currentGroup) {
+      currentGroup.aiReplies.push(text);
+    }
+  });
+  return conversationGroups;
+}
+
+function getGeminiGroups() {
   const userElements = findGeminiUserMessages();
   const aiElements = findGeminiAiMessages();
 
@@ -1110,7 +1037,6 @@ function extractGeminiContent(selectedIndices = null) {
   const topLevelElements = [];
   allElements.forEach(el => {
     if (el.offsetParent === null) return;
-
     const isChild = topLevelElements.some(parent => parent.contains(el));
     if (!isChild) {
       for (let i = topLevelElements.length - 1; i >= 0; i--) {
@@ -1122,16 +1048,13 @@ function extractGeminiContent(selectedIndices = null) {
     }
   });
 
-  // 按对话分组
   const conversationGroups = [];
   let currentGroup = null;
-
-  const recentTexts = []; // 用于连续文本去重
+  const recentTexts = [];
 
   topLevelElements.forEach(el => {
     const isUser = isGeminiUserElement(el);
     const isAi = isGeminiAiElement(el);
-
     if (!isUser && !isAi) return;
 
     let text = el.innerText || el.textContent;
@@ -1139,13 +1062,10 @@ function extractGeminiContent(selectedIndices = null) {
       text = text.replace(/^你说\s*/, '').replace(/^You said\s*/i, '').trim();
     }
     text = cleanChatText(text);
-
     if (!text.trim()) return;
 
-    // 文本去重：规范化后比较
     const normalizedText = text.trim().replace(/\s+/g, ' ');
     if (recentTexts.includes(normalizedText)) return;
-
     recentTexts.push(normalizedText);
     if (recentTexts.length > 5) recentTexts.shift();
 
@@ -1156,41 +1076,16 @@ function extractGeminiContent(selectedIndices = null) {
       currentGroup.aiReplies.push(text);
     }
   });
-
-  // 根据选中的索引导出
-  conversationGroups.forEach((group, index) => {
-    if (selectedIndices !== null && !selectedIndices.includes(index)) return;
-
-    md += `## 🙋 ${group.user.text}\n\n`;
-    group.aiReplies.forEach(aiText => {
-      md += `**🤖 ${getAILabel()} ${t('replyWord')}**:\n\n${formatForMarkdown(aiText)}\n\n`;
-      md += `---\n\n`;
-    });
-  });
-
-  if (conversationGroups.length === 0) {
-    md += '> ⚠️ ' + t('extractGeminiFailed') + '\n';
-  }
-
-  return md;
+  return conversationGroups;
 }
 
-// 提取 Claude 内容
-function extractClaudeContent(selectedIndices = null) {
-  let md = '';
-
+function getClaudeGroups() {
   const mainContainer = findClaudeContainer();
-
-  if (!mainContainer) {
-    md += '> ⚠️ ' + t('extractClaudeNoContainer') + '\n';
-    return md;
-  }
+  if (!mainContainer) return [];
 
   const children = Array.from(mainContainer.children);
   const recentTexts = [];
   const processedAiContainers = new Set();
-
-  // 按对话分组
   const conversationGroups = [];
   let currentGroup = null;
 
@@ -1198,11 +1093,9 @@ function extractClaudeContent(selectedIndices = null) {
     if (child.offsetParent === null) return;
 
     const userMsg = child.querySelector(CONFIG.selectors.claude.userMessage);
-
     if (userMsg) {
       let text = userMsg.textContent.trim();
       text = cleanChatText(text);
-
       if (!text.trim()) return;
 
       const normalizedText = text.trim().replace(/\s+/g, ' ');
@@ -1215,7 +1108,6 @@ function extractClaudeContent(selectedIndices = null) {
     }
 
     // 提取 AI 回复 - 获取整个容器的完整内容
-    // 先找到包含 AI 段落的容器
     const aiParagraphs = findClaudeAiParagraphs(child);
     if (aiParagraphs.length > 0 && !userMsg) {
       const firstParagraph = aiParagraphs[0];
@@ -1224,8 +1116,6 @@ function extractClaudeContent(selectedIndices = null) {
       if (!processedAiContainers.has(containerKey)) {
         processedAiContainers.add(containerKey);
 
-        // 找到 AI 回复的完整容器（包含标题、段落等所有内容）
-        // 从容器的子元素中查找，跳过用户消息容器
         let aiContainer = null;
         for (const el of child.children) {
           if (findClaudeAiParagraphs(el).length > 0) {
@@ -1234,55 +1124,89 @@ function extractClaudeContent(selectedIndices = null) {
           }
         }
 
-        // 收集所有文本内容
         let aiText = '';
         if (aiContainer) {
-          // 获取容器内所有可见文本
           aiText = aiContainer.textContent.trim();
         } else {
-          // 兜底：收集所有段落的文本
           const paragraphs = [];
           aiParagraphs.forEach(p => {
             const text = p.textContent.trim();
-            if (text && text.length > 5) {
-              paragraphs.push(text);
-            }
+            if (text && text.length > 5) paragraphs.push(text);
           });
           aiText = paragraphs.join('\n\n');
         }
 
         if (aiText && aiText.length > 5) {
           aiText = cleanChatText(aiText);
-
           const normalizedText = aiText.trim().replace(/\s+/g, ' ');
           if (recentTexts.includes(normalizedText)) return;
           recentTexts.push(normalizedText);
           if (recentTexts.length > 5) recentTexts.shift();
 
-          if (currentGroup) {
-            currentGroup.aiReplies.push(aiText);
-          }
+          if (currentGroup) currentGroup.aiReplies.push(aiText);
         }
       }
     }
   });
+  return conversationGroups;
+}
 
-  // 根据选中的索引导出
+// 把对话分组格式化为 Markdown（按选中索引过滤）
+function groupsToMarkdown(conversationGroups, selectedIndices = null) {
+  let md = '';
   conversationGroups.forEach((group, index) => {
     if (selectedIndices !== null && !selectedIndices.includes(index)) return;
-
     md += `## 🙋 ${group.user.text}\n\n`;
     group.aiReplies.forEach(aiText => {
       md += `**🤖 ${getAILabel()} ${t('replyWord')}**:\n\n${formatForMarkdown(aiText)}\n\n`;
       md += `---\n\n`;
     });
   });
+  return md;
+}
 
+// 截断到指定字数（用于导出列表预览，避免长内容撑爆列表项）
+// 同时把换行/连续空白压缩为单空格，保持列表单行整洁
+function truncateForImage(text, max = 140) {
+  if (!text) return '';
+  const str = String(text).replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return str.length > max ? str.substring(0, max) + '…' : str;
+}
+
+function extractChatGPTContent(selectedIndices = null) {
+  const conversationGroups = getChatGPTGroups();
   if (conversationGroups.length === 0) {
-    md += '> ⚠️ ' + t('extractClaudeFailed') + '\n';
+    // 兜底策略：未识别到消息结构
+    let md = '> ⚠️ ' + t('extractImprecise') + '\n\n';
+    tocItems.forEach(item => {
+      md += `## Question\n\n${item.text}\n\n`;
+    });
+    return md;
+  }
+  return groupsToMarkdown(conversationGroups, selectedIndices);
+}
+
+// 提取 Gemini 内容
+function extractGeminiContent(selectedIndices = null) {
+  const conversationGroups = getGeminiGroups();
+  if (conversationGroups.length === 0) {
+    return '> ⚠️ ' + t('extractGeminiFailed') + '\n';
+  }
+  return groupsToMarkdown(conversationGroups, selectedIndices);
+}
+
+// 提取 Claude 内容
+function extractClaudeContent(selectedIndices = null) {
+  const mainContainer = findClaudeContainer();
+  if (!mainContainer) {
+    return '> ⚠️ ' + t('extractClaudeNoContainer') + '\n';
   }
 
-  return md;
+  const conversationGroups = getClaudeGroups();
+  if (conversationGroups.length === 0) {
+    return '> ⚠️ ' + t('extractClaudeFailed') + '\n';
+  }
+  return groupsToMarkdown(conversationGroups, selectedIndices);
 }
 
 // 清理多余文本
@@ -1513,240 +1437,6 @@ function highlightActive(activeDiv) {
   activeDiv.classList.add('active');
 }
 
-// 导出为图片 - 使用 html2canvas
-function exportToImage(selectedIndices, conversationGroups) {
-  // 检查 html2canvas 是否可用 - 同时检查 window.html2canvas 和全局 html2canvas
-  const html2canvasLib = window.html2canvas || (typeof html2canvas !== 'undefined' ? html2canvas : null);
-
-  if (!html2canvasLib) {
-    console.error('[AI Chat TOC] html2canvas not loaded');
-    alert(t('imgLibNotLoaded'));
-    return;
-  }
-
-  // 先构建 HTML 内容（纯 inline style，不依赖任何外部样式表）
-  let html = `<div style="max-width: 720px; margin: 0 auto;">`;
-
-  // 添加标题
-  const pageTitle = document.title || 'AI Chat Export';
-  html += `
-    <div style="text-align: center; margin-bottom: 40px; padding-bottom: 24px; border-bottom: 2px solid #e5e5e5;">
-      <h1 style="font-size: 24px; font-weight: 700; color: #1a1a1a; margin: 0 auto 8px auto; max-width: 680px; line-height: 1.25; font-family: inherit; word-break: break-word; overflow-wrap: anywhere;">${escapeHtml(pageTitle)}</h1>
-      <p style="font-size: 14px; color: #6b7280; margin: 0; font-family: inherit;">${t('exportTime')}${new Date().toLocaleString()}</p>
-    </div>
-  `;
-
-  // 添加对话内容
-  const aiLabel = getAILabel();
-  selectedIndices.forEach(index => {
-    const group = conversationGroups[index];
-
-    html += `
-      <div style="background: #f9f9f9; border-radius: 12px; padding: 24px; margin-bottom: 20px; border: 1px solid #e5e5e5;">
-        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #e5e5e5;">
-          <div style="width: 32px; height: 32px; border-radius: 50%; background: #3b82f6; display: flex; align-items: center; justify-content: center; color: white; font-size: 16px; flex-shrink: 0;">🙋</div>
-          <div style="font-size: 15px; font-weight: 600; color: #1a1a1a; line-height: 1.4; font-family: inherit;">${escapeHtml(group.user.text)}</div>
-        </div>
-    `;
-
-    // 添加 AI 回复
-    if (group.aiReplies.length > 0) {
-      group.aiReplies.forEach(aiReply => {
-        // aiReply 可能是对象 { text: '...' } 或字符串，需要提取 text 属性
-        let aiTextRaw = typeof aiReply === 'string' ? aiReply : (aiReply.text || '');
-
-        // 清理 AI 回复内容，移除过多的换行
-        let aiText = cleanChatText(aiTextRaw);
-        aiText = aiText.replace(/\n{3,}/g, '\n\n');
-
-        html += `
-          <div style="display: flex; gap: 12px; padding-left: 44px; margin-top: 16px;">
-            <div style="width: 28px; height: 28px; border-radius: 50%; background: #10b981; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; flex-shrink: 0; margin-top: 2px;">🤖</div>
-            <div style="flex: 1;">
-              <div style="font-size: 12px; color: #6b7280; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; font-family: inherit;">${aiLabel} ${t('replyWord')}</div>
-              <div style="font-size: 14px; color: #374151; line-height: 1.6; white-space: pre-wrap; word-break: break-word; font-family: inherit;">${escapeHtml(aiText)}</div>
-            </div>
-          </div>
-        `;
-      });
-    }
-
-    html += `</div>`;
-  });
-
-  html += `</div>`;
-
-  // 显示 loading 状态
-  const loadingDiv = document.createElement('div');
-  loadingDiv.id = 'ai-toc-image-loading';
-  loadingDiv.innerHTML = '<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.8);color:white;padding:20px 40px;border-radius:12px;font-size:14px;z-index:99999;">' + t('imgGenerating') + '</div>';
-  document.body.appendChild(loadingDiv);
-
-  // 用隐藏 iframe 提供干净的渲染文档。
-  // 关键：html2canvas 会 clone 元素所在的 document 来计算样式。若元素挂在主文档上，
-  // 就会 clone ChatGPT/Claude 的海量 DOM+CSS，同步阻塞主线程 → 浏览器卡死。
-  // 放进空白 iframe 后，clone 的只是这个极简文档，渲染几乎瞬间完成。
-  const iframe = document.createElement('iframe');
-  iframe.setAttribute('aria-hidden', 'true');
-  iframe.style.cssText = 'position:fixed;left:-99999px;top:0;width:800px;height:0;border:0;background:#fff;';
-  document.body.appendChild(iframe);
-
-  const idoc = iframe.contentDocument;
-  idoc.open();
-  idoc.write('<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#fff;"></body></html>');
-  idoc.close();
-
-  const container = idoc.createElement('div');
-  container.style.cssText = 'width:800px;padding:40px;box-sizing:border-box;background:#fff;color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-size:16px;line-height:1.5;';
-  container.innerHTML = html;
-  idoc.body.appendChild(container);
-
-  const cleanup = () => {
-    if (loadingDiv.parentNode) loadingDiv.parentNode.removeChild(loadingDiv);
-    if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-    setTocOverlayHidden(false);
-  };
-
-  // 双重 rAF + 微延迟：让 loading 先绘制到屏幕，再开始 html2canvas 的同步重活
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    setTimeout(() => {
-      // 超长对话时降低 scale，避免 canvas 尺寸过大导致内存爆炸/卡死
-      const contentHeight = container.scrollHeight || 0;
-      const scale = contentHeight > 4000 ? 1 : 2;
-
-      html2canvasLib(container, {
-        scale,
-        backgroundColor: '#ffffff',
-        useCORS: true,
-        logging: false,
-        width: 800,
-        windowWidth: 800
-      }).then(canvas => {
-        // 下载图片（toBlob 回调里防御 blob 为 null 等异常）
-        canvas.toBlob(blob => {
-          try {
-            if (!blob) throw new Error('canvas.toBlob returned null');
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `chat-export-${new Date().toISOString().slice(0, 10)}.png`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-          } catch (e) {
-            console.error('[AI Chat TOC] 图片下载失败:', e);
-            alert(t('imgDownloadFailed') + e.message);
-          }
-        }, 'image/png');
-
-        cleanup();
-      }).catch(err => {
-        console.error('[AI Chat TOC] 导出图片失败:', err);
-        alert(t('imgExportFailed') + err.message);
-        cleanup();
-      });
-    }, 50);
-  }));
-}
-
-// 显示图片预览
-function showImagePreview(selectedIndices, conversationGroups) {
-  // 获取选中的索引
-  const indices = selectedIndices || [];
-  if (indices.length === 0) {
-    alert(t('selectAtLeastOne'));
-    return;
-  }
-
-  setTocOverlayHidden(true);
-
-  // 创建预览容器
-  const preview = document.createElement('div');
-  preview.id = 'ai-toc-image-preview';
-  preview.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:99998;display:flex;align-items:center;justify-content:center;';
-
-  const previewContent = document.createElement('div');
-  previewContent.style.cssText = 'background:#fff;border-radius:12px;max-width:90%;max-height:90%;overflow:auto;box-shadow:0 4px 24px rgba(0,0,0,0.2);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;box-sizing:border-box;';
-
-  // 构建预览内容 - 与导出图片相同的样式
-  const aiLabel = getAILabel();
-  let html = `<div style="width:800px;padding:40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">`;
-
-  // 标题
-  const pageTitle = document.title || 'AI Chat Export';
-  html += `
-    <div style="text-align:center;margin-bottom:40px;padding-bottom:24px;border-bottom:2px solid #e5e5e5;">
-      <h1 style="font-size:24px;font-weight:700;color:#1a1a1a;margin:0 auto 8px auto;max-width:680px;line-height:1.25;word-break:break-word;overflow-wrap:anywhere;">${escapeHtml(pageTitle)}</h1>
-      <p style="font-size:14px;color:#6b7280;margin:0;">${t('exportTime')}${new Date().toLocaleString()}</p>
-    </div>
-  `;
-
-  // 对话内容
-  selectedIndices.forEach(index => {
-    const group = conversationGroups[index];
-
-    html += `
-      <div style="background:#f9f9f9;border-radius:12px;padding:24px;margin-bottom:20px;border:1px solid #e5e5e5;">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #e5e5e5;">
-          <div style="width:32px;height:32px;border-radius:50%;background:#3b82f6;display:flex;align-items:center;justify-content:center;color:white;font-size:16px;flex-shrink:0;">🙋</div>
-          <div style="font-size:15px;font-weight:600;color:#1a1a1a;line-height:1.4;">${escapeHtml(group.user.text)}</div>
-        </div>
-    `;
-
-    if (group.aiReplies.length > 0) {
-      group.aiReplies.forEach(aiReply => {
-        let aiTextRaw = typeof aiReply === 'string' ? aiReply : (aiReply.text || '');
-        let aiText = cleanChatText(aiTextRaw);
-        aiText = aiText.replace(/\n{3,}/g, '\n\n');
-
-        html += `
-          <div style="display:flex;gap:12px;padding-left:44px;margin-top:16px;">
-            <div style="width:28px;height:28px;border-radius:50%;background:#10b981;display:flex;align-items:center;justify-content:center;color:white;font-size:14px;flex-shrink:0;margin-top:2px;">🤖</div>
-            <div style="flex:1;">
-              <div style="font-size:12px;color:#6b7280;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">${aiLabel} ${t('replyWord')}</div>
-              <div style="font-size:14px;color:#374151;line-height:1.6;white-space:pre-wrap;word-break:break-word;">${escapeHtml(aiText)}</div>
-            </div>
-          </div>
-        `;
-      });
-    }
-
-    html += `</div>`;
-  });
-
-  html += `</div>`;
-
-  previewContent.innerHTML = html;
-  preview.appendChild(previewContent);
-
-  const closePreview = () => {
-    preview.remove();
-    if (!document.getElementById('ai-toc-export-dialog')) {
-      setTocOverlayHidden(false);
-    }
-  };
-
-  // 关闭按钮
-  const closeBtn = document.createElement('button');
-  closeBtn.textContent = t('closePreview');
-  closeBtn.style.cssText = 'position:absolute;top:20px;right:20px;padding:12px 24px;background:#3b82f6;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;box-sizing:border-box;font-weight:600;letter-spacing:normal;line-height:1.5;text-transform:none;';
-  closeBtn.onclick = closePreview;
-  preview.appendChild(closeBtn);
-
-  // 导出按钮
-  const exportBtn = document.createElement('button');
-  exportBtn.textContent = t('exportImageBtn');
-  exportBtn.style.cssText = 'position:absolute;top:20px;right:140px;padding:12px 24px;background:#10b981;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;box-sizing:border-box;font-weight:600;letter-spacing:normal;line-height:1.5;text-transform:none;';
-  exportBtn.onclick = () => {
-    preview.remove();
-    // 目录由 exportToImage 完成后恢复
-    exportToImage(selectedIndices, conversationGroups);
-  };
-  preview.appendChild(exportBtn);
-
-  document.body.appendChild(preview);
-}
 
 // 启动
 if (document.readyState === 'loading') {
