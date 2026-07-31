@@ -20,10 +20,8 @@
   - 上架包:`dist/ai-chat-toc-1.0.2.zip`
   - 本版重点:中英双语、导出 UI 样式加固、目录不遮挡弹窗、Claude/Gemini 抗改版、stableId 冲突修复
   - 含「导出为图片」功能,但 html2canvas 在 SPA 上渲染不稳定,v1.0.3 已移除
-- ✅ **v1.0.3** 已打包并提交审核(2026-07-14)
-  - 上架包:`dist/ai-chat-toc-1.0.3.zip`
+- ✅ **v1.0.3** 已审核通过并上线(2026-07-14 提审,当前线上版本)
   - 本版重点:移除不稳定的「导出为图片」功能及 html2canvas 依赖,抽取 getConversationGroups() 统一导出数据源,包体从 77K 降到 29K
-  - 注:审核期间发现 ChatGPT 单条消息目录误显示 bug,改由 v1.0.4 修复后重新提审,v1.0.3 未上线
 - ✅ **v1.0.4** 已打包并提交审核(2026-07-31)
   - 上架包:`dist/ai-chat-toc-1.0.4.zip`
   - 本版重点:修复 ChatGPT 单条消息时目录误显示(observer 漏监听 data-message-author-role 属性变化 + CSS display:flex !important 覆盖隐藏)
@@ -148,7 +146,7 @@ AI 平台 DOM 改版是**这类扩展的最大杀手**。下面是可能突然�
 - **2026-06-23** v1.0.1 审核通过并发布
 - **2026-06-24** v1.0.2 提交审核
   - 中英双语(i18n)、导出 UI 修复、目录不遮挡弹窗、抗改版与稳定性增强
-- **2026-07-14** v1.0.3 提交审核
+- **2026-07-14** v1.0.3 提交审核,后审核通过并上线(当前线上版本)
   - 移除「导出为图片」功能及 html2canvas 依赖(html2canvas 在 ChatGPT/Gemini/Claude 等 SPA 上渲染不稳定,反复卡死/文字重叠),仅保留 Markdown 导出
   - 抽取 getConversationGroups(),列表 / Markdown 导出共用完整数据源
   - 包体从 77K 降到 29K
