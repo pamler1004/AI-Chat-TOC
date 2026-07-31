@@ -130,6 +130,29 @@ try {
 // 上次渲染的数据签名，用于跳过无变化的 DOM 操作（防 hover 闪烁）
 let lastRenderSignature = '';
 
+// ChatGPT 虚拟滚动缓存:曾经见过的 user 消息(即使被移出 DOM 也保留在目录里)
+// ChatGPT 会把视口外的消息从 DOM 完全移除,parseChatGPT 查不到,导致目录缺项
+// 持久化到 sessionStorage:刷新页面后目录立即显示全部历史消息,不用等滚动加载
+// (用 sessionStorage 而非 localStorage:标签页隔离,避免多标签页互相污染;关闭标签页自动清理)
+let knownUserOrder = []; // stableId 数组,按首次见到顺序
+let knownUserMap = new Map(); // stableId -> item
+try {
+  const cached = JSON.parse(sessionStorage.getItem('aiTocChatgptCache') || '[]');
+  if (Array.isArray(cached)) {
+    cached.forEach(it => {
+      if (it && it.stableId) {
+        knownUserMap.set(it.stableId, it);
+        knownUserOrder.push(it.stableId);
+      }
+    });
+  }
+} catch (e) { /* sessionStorage 损坏,忽略 */ }
+
+// 会话标识:用 URL pathname 检测会话切换(比 stableId 碰撞检测可靠)
+// 切换会话时清空虚拟滚动缓存,避免旧会话目录混入新会话
+let lastConvKey = '';
+try { lastConvKey = sessionStorage.getItem('aiTocChatgptConvKey') || ''; } catch (e) {}
+
 // 初始化
 function init() {
   detectPlatform();
@@ -559,18 +582,63 @@ function parseChatGPT() {
     }
   });
 
-  // 简单的 Diff 检查 - 使用 stableId 比较更可靠
-  if (tocItems.length === newItems.length &&
-      tocItems.every((item, i) =>
-        item.stableId === newItems[i].stableId &&
-        item.type === newItems[i].type &&
-        item.text === newItems[i].text)) {
-    // console.log('[AI Chat TOC] No changes detected');
-    return;
+  // 会话切换检测(主):URL pathname 变化即视为切换会话,清空缓存
+  // 比 stableId 碰撞检测可靠:避免新会话首条消息文本与旧会话相同(如"你好""继续")时漏判、旧会话目录混入
+  const convKey = location.pathname;
+  if (lastConvKey && convKey !== lastConvKey) {
+    knownUserMap.clear();
+    knownUserOrder = [];
+    try { sessionStorage.removeItem('aiTocChatgptCache'); } catch (e) {}
+  }
+  lastConvKey = convKey;
+  try { sessionStorage.setItem('aiTocChatgptConvKey', convKey); } catch (e) {}
+
+  // 虚拟滚动缓存:更新已见的 user 消息(ChatGPT 会把视口外的 user 消息移出 DOM)
+  const currentUserIds = new Set();
+  newItems.forEach(it => {
+    if (it.type === 'user') {
+      currentUserIds.add(it.stableId);
+      if (!knownUserMap.has(it.stableId)) knownUserOrder.push(it.stableId);
+      knownUserMap.set(it.stableId, { ...it });
+    }
+  });
+
+  // 会话切换检测:newItems 的 user 项全部不在缓存(且缓存非空),视为切换会话,清空缓存
+  const userInNew = newItems.filter(it => it.type === 'user');
+  if (knownUserMap.size > 0 && userInNew.length > 0 &&
+      userInNew.every(it => !knownUserMap.has(it.stableId))) {
+    knownUserMap.clear();
+    knownUserOrder = [];
+    try { sessionStorage.removeItem('aiTocChatgptCache'); } catch (e) {}
+    userInNew.forEach(it => {
+      knownUserMap.set(it.stableId, { ...it });
+      knownUserOrder.push(it.stableId);
+    });
   }
 
-  // console.log('[AI Chat TOC] Updating TOC:', newItems.length, 'items');
-  tocItems = newItems;
+  // 同步缓存到 sessionStorage(刷新后可恢复,目录立即显示全部历史消息)
+  try {
+    sessionStorage.setItem('aiTocChatgptCache', JSON.stringify(
+      knownUserOrder.map(sid => knownUserMap.get(sid)).filter(Boolean)
+    ));
+  } catch (e) { /* 存储失败(空间不足等),忽略 */ }
+
+  // 合并:缓存的 user(不在 newItems 的)+ newItems(DOM 里的,含 ai)
+  const retainedUser = knownUserOrder
+    .filter(sid => !currentUserIds.has(sid))
+    .map(sid => knownUserMap.get(sid))
+    .filter(Boolean);
+  const mergedItems = [...retainedUser, ...newItems];
+
+  // Diff 检查
+  if (tocItems.length === mergedItems.length &&
+      tocItems.every((item, i) =>
+        item.stableId === mergedItems[i].stableId &&
+        item.type === mergedItems[i].type &&
+        item.text === mergedItems[i].text)) {
+    return;
+  }
+  tocItems = mergedItems;
 }
 
 // 简单的字符串哈希函数，用于生成稳定的 ID
@@ -1435,6 +1503,25 @@ function createClickHandler(item, div) {
         setTimeout(() => {
           target.scrollIntoView({ behavior: 'auto', block: 'start' });
         }, 150);
+      } else if (item.type === 'user') {
+        // 虚拟滚动兜底:元素被 ChatGPT 移出 DOM,按目录顺序估算位置滚动,触发渲染后重试
+        const userItems = tocItems.filter(t => t.type === 'user');
+        const idx = userItems.findIndex(t => t.stableId === item.stableId);
+        if (idx >= 0) {
+          const ratio = userItems.length > 1 ? idx / (userItems.length - 1) : 0;
+          const scrollEl = document.querySelector('main') || document.scrollingElement || document.documentElement;
+          const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+          scrollEl.scrollTo({ top: Math.round(maxScroll * ratio), behavior: 'auto' });
+          setTimeout(() => {
+            parseChatGPT();
+            const newItem = tocItems.find(t => t.stableId === item.stableId);
+            const t = newItem && document.getElementById(newItem.id);
+            if (t) {
+              t.scrollIntoView({ behavior: 'auto', block: 'start' });
+              highlightActive(div);
+            }
+          }, 400);
+        }
       }
     } catch (err) {
       console.error('[AI Chat TOC] click handler failed:', err);

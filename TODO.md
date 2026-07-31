@@ -25,7 +25,13 @@
 - ✅ **v1.0.4** 已打包并提交审核(2026-07-31)
   - 上架包:`dist/ai-chat-toc-1.0.4.zip`
   - 本版重点:修复 ChatGPT 单条消息时目录误显示(observer 漏监听 data-message-author-role 属性变化 + CSS display:flex !important 覆盖隐藏)
-- ⏳ **等待 v1.0.4 审核结果**
+- ✅ **v1.0.5** 已打包(2026-07-31,待提审,包含 v1.0.4 全部修复)
+  - 上架包:`dist/ai-chat-toc-1.0.5.zip`
+  - 本版重点:
+    - 修复浅色模式下展开目录面板文字看不清(背景 `rgba(0,0,0,0.15)` -> `rgba(20,20,24,0.92)`,投影加深)
+    - 隐藏 ChatGPT 官方目录(2026-06-08 推出,位置与插件重叠,`div[class*="inset-e-4"]...` 选择器)
+    - 修复 ChatGPT 虚拟滚动导致目录缺项(sessionStorage 持久化 + URL pathname 检测会话切换,避免 stableId 碰撞漏判)
+- ⏳ **等待 v1.0.5 提审 / 审核结果**
 
 ### 短期(审核期)
 

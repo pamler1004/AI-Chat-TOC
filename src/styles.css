@@ -31,11 +31,14 @@
 #ai-toc-container:hover,
 #ai-toc-container.pinned {
   width: 300px !important;
-  background-color: rgba(0, 0, 0, 0.15) !important;
-  backdrop-filter: blur(4px) !important;
-  -webkit-backdrop-filter: blur(4px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  /* 强不透明深色底：浅色模式下也能挡住页面，确保浅色文字 (#c5c5d2) 可读；
+     原 rgba(0,0,0,0.15) 在白底上近乎透明，浅色文字完全看不清 */
+  background-color: rgba(20, 20, 24, 0.92) !important;
+  backdrop-filter: blur(8px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  /* 加深投影：浅色页面下面板边界依然清晰 */
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
   padding: 12px !important;
   transition-duration: 0.25s !important;
   overflow: hidden !important;
@@ -511,5 +514,15 @@
   display: flex !important;
   gap: 6px !important;
   flex-wrap: wrap !important;
+}
+
+/* ==================== 隐藏 ChatGPT 官方目录 ====================
+   ChatGPT 2026-06-08 推出「长对话目录」(>5 轮回复自动出现),位置与插件几乎
+   完全重叠(官方 right:16px vs 插件 right:20px),两者并排挤在一起视觉混乱。
+   官方目录特征 class: fixed inset-e-4 top-1/2 z-20 -translate-y-1/2
+   (右侧 16px、垂直居中的 36x120 竖条)。隐藏后只保留插件目录
+   (支持收藏/导出/三平台/阈值低)。注:ChatGPT 若改 class 名会失效,届时更新选择器。 */
+div[class*="inset-e-4"][class*="top-1/2"][class*="translate-y-1/2"][class*="z-20"] {
+  display: none !important;
 }
 
