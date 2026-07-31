@@ -438,6 +438,7 @@ function startObserving() {
     const hasRelevantChange = mutationsList.some(m =>
       m.addedNodes.length > 0 ||
       m.removedNodes.length > 0 ||
+      m.type === 'attributes' || // ChatGPT 改 data-message-author-role 时不触发 childList
       (m.type === 'characterData' && m.target.textContent?.trim().length > 0)
     );
 
@@ -457,11 +458,20 @@ function startObserving() {
     childList: true,
     subtree: true,
     characterData: true, // 监听文本变化，用于流式输出实时更新
-    characterDataOldValue: false // 不需要旧值，减少内存占用
+    characterDataOldValue: false, // 不需要旧值，减少内存占用
+    attributes: true, // 监听 data-message-author-role 变化（ChatGPT 改 role 时不触发 childList）
+    attributeFilter: ['data-message-author-role']
   });
 
   // 初始执行一次
   setTimeout(updateTOC, 1000);
+
+  // 兜底轮询：observer 仍可能遗漏个别边缘变化（元素被原地替换、shadow DOM 等），
+  // 导致 tocItems 与实际 DOM 不同步。典型表现：ChatGPT 单条消息时目录卡在显示状态
+  // ——发消息瞬间捕获过第 2 个 user 元素，之后该元素 role 被改但未触发 updateTOC。
+  // 每 2 秒兜底同步一次，确保 tocItems 最终与 DOM 一致。
+  if (window.__tocFallbackPoll) clearInterval(window.__tocFallbackPoll);
+  window.__tocFallbackPoll = setInterval(updateTOC, 2000);
 }
 
 // 更新目录的核心逻辑
@@ -1299,7 +1309,7 @@ function renderTOC() {
   if (visibleItems.length < 2) {
     const container = document.getElementById('ai-toc-container');
     if (container) {
-      container.style.display = 'none';
+      container.classList.add('hidden');
       // 同时清掉 pinned 状态：固定不持久化，下次符合条件再展示时回到默认收起态
       container.classList.remove('pinned');
       const pinBtn = container.querySelector('.ai-toc-pin');
@@ -1312,8 +1322,8 @@ function renderTOC() {
 
   // 如果有目录项，确保容器显示
   const container = document.getElementById('ai-toc-container');
-  if (container && container.style.display === 'none') {
-    container.style.display = 'flex';
+  if (container && container.classList.contains('hidden')) {
+    container.classList.remove('hidden');
   }
 
   // 数据签名：stableId+收藏+文本 完全一致则跳过 DOM 操作。

@@ -90,9 +90,10 @@
   background: rgba(255, 255, 255, 0.3) !important;
 }
 
-/* 隐藏时 */
+/* 隐藏时：!important 覆盖上方 #ai-toc-container 的 display:flex !important，
+   确保单条消息等场景下容器真正消失、不响应 hover 展开 */
 #ai-toc-container.hidden {
-  display: none;
+  display: none !important;
 }
 
 /* 标题区域 */

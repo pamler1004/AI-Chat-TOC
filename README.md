@@ -79,7 +79,7 @@ node --check src/content.js
 node --check src/content.js
 
 # 2. 从 src/ 压缩为 zip(zip 内顶层即 manifest.json,不能多套一层 src/ 目录)
-(cd src && zip -r ../dist/ai-chat-toc-1.0.3.zip . -x "*.DS_Store" -x "*/.DS_Store")
+(cd src && zip -r ../dist/ai-chat-toc-1.0.4.zip . -x "*.DS_Store" -x "*/.DS_Store")
 
 # 3. 上传 dist/ai-chat-toc-*.zip 到 Chrome Web Store 开发者后台
 ```

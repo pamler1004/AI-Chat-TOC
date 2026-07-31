@@ -23,17 +23,21 @@
 - ✅ **v1.0.3** 已打包并提交审核(2026-07-14)
   - 上架包:`dist/ai-chat-toc-1.0.3.zip`
   - 本版重点:移除不稳定的「导出为图片」功能及 html2canvas 依赖,抽取 getConversationGroups() 统一导出数据源,包体从 77K 降到 29K
-- ⏳ **等待 v1.0.3 审核结果**
+  - 注:审核期间发现 ChatGPT 单条消息目录误显示 bug,改由 v1.0.4 修复后重新提审,v1.0.3 未上线
+- ✅ **v1.0.4** 已打包并提交审核(2026-07-31)
+  - 上架包:`dist/ai-chat-toc-1.0.4.zip`
+  - 本版重点:修复 ChatGPT 单条消息时目录误显示(observer 漏监听 data-message-author-role 属性变化 + CSS display:flex !important 覆盖隐藏)
+- ⏳ **等待 v1.0.4 审核结果**
 
 ### 短期(审核期)
 
 - [ ] ⏳ 关注审核邮件,留意 Chrome Web Store 后台状态变化
 - [ ] 🙋 **如果被拒**:把拒信原文(reason / 政策条款编号 / 审核员留言)截图/复制给我,我来分析并给出修改方案
-- [ ] 🙋 **如果通过**:检查线上版本是否为 v1.0.3,并做一次三平台冒烟测试
+- [ ] 🙋 **如果通过**:检查线上版本是否为 v1.0.4,并做一次三平台冒烟测试
 
 ### 审核通过后立即检查
 
-- [ ] 🙋 Chrome Web Store 版本显示为 `1.0.3`
+- [ ] 🙋 Chrome Web Store 版本显示为 `1.0.4`
 - [ ] 🙋 中文浏览器下扩展名称 / 描述 / 导出弹窗 / 导出内容显示中文
 - [ ] 🙋 英文浏览器下扩展名称 / 描述 / 导出弹窗 / 导出内容显示英文
 - [ ] 🙋 ChatGPT / Gemini / Claude 各发 2 条以上提问,确认目录出现、点击跳转正常
@@ -76,6 +80,10 @@
 
 - [x] 🤖 抽取 getConversationGroups(),列表 / Markdown 导出共用完整数据源
 - [x] 🤖 移除「导出为图片」功能及 html2canvas 依赖(渲染不稳定,包体从 77K 降到 29K)
+
+### v1.0.4 已完成
+- [x] 🤖 修复 ChatGPT 单条消息时目录误显示:observer 加 attributes 监听 data-message-author-role 变化 + 2 秒兜底轮询,确保 tocItems 与 DOM 同步
+- [x] 🤖 修复目录容器未真正隐藏(CSS display:flex !important 覆盖了 inline display:none):改用 .hidden class + CSS !important
 
 ### 想到再加的功能(候选,不一定都做)
 
@@ -144,3 +152,6 @@ AI 平台 DOM 改版是**这类扩展的最大杀手**。下面是可能突然�
   - 移除「导出为图片」功能及 html2canvas 依赖(html2canvas 在 ChatGPT/Gemini/Claude 等 SPA 上渲染不稳定,反复卡死/文字重叠),仅保留 Markdown 导出
   - 抽取 getConversationGroups(),列表 / Markdown 导出共用完整数据源
   - 包体从 77K 降到 29K
+- **2026-07-31** v1.0.4 提交审核
+  - 修复 ChatGPT 单条消息时目录误显示:发消息瞬间捕获过第 2 个 user 元素(消息克隆/模板),之后该元素 role 被改但 observer 只监听 childList/characterData、漏监听 attributes,导致 tocItems 卡在 2 条、目录持续显示;且 renderTOC 设的 display:none 被 CSS display:flex !important 覆盖,容器仍可 hover 展开
+  - 修复:observer 加 attributeFilter 监听 data-message-author-role + 2 秒兜底轮询;隐藏改用 .hidden class + CSS !important

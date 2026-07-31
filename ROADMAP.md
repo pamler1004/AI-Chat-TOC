@@ -9,9 +9,10 @@
 
 - **v1.0.1** 已审核通过并发布
 - **v1.0.2** 已于 2026-06-24 提交 Chrome Web Store 审核
-- **v1.0.3** 已于 2026-07-14 提交 Chrome Web Store 审核(移除不稳定的图片导出功能)
+- **v1.0.3** 已于 2026-07-14 提交 Chrome Web Store 审核(移除不稳定的图片导出功能);审核期间发现 ChatGPT 单条消息目录误显示 bug,改由 v1.0.4 修复后重新提审,v1.0.3 未上线
+- **v1.0.4** 已于 2026-07-31 提交 Chrome Web Store 审核(修复 ChatGPT 单条消息目录误显示)
 - 仓库当前为 **private**,可在稳定后按需改 public
-- ⏳ 等待 v1.0.3 审核结果
+- ⏳ 等待 v1.0.4 审核结果
 
 ---
 
@@ -92,7 +93,8 @@
 **已规划版本**
 
 - `v1.0.2`:已提交审核,重点修复导出 UI、中英双语和平台抗改版。
-- `v1.0.3`:已提交审核,移除不稳定的图片导出功能及 html2canvas 依赖,抽取统一导出数据源,包体从 77K 降到 29K。
+- `v1.0.3`:已提交审核,移除不稳定的图片导出功能及 html2canvas 依赖,抽取统一导出数据源,包体从 77K 降到 29K。审核期间发现 ChatGPT 单条消息目录误显示 bug,改由 v1.0.4 修复后重新提审,v1.0.3 未上线。
+- `v1.0.4`:已提交审核,修复 ChatGPT 单条消息时目录误显示(observer 漏监听 data-message-author-role 属性变化 + CSS display:flex !important 覆盖隐藏)。
 - `v1.1.0`:首批用户反馈收集后的迭代,候选见上方。
 
 > 发版步骤见 [TODO.md §四](./TODO.md)。
@@ -124,3 +126,6 @@
   - 移除「导出为图片」功能及 html2canvas 依赖(SPA 页面渲染不稳定,反复卡死/文字重叠),仅保留 Markdown 导出
   - 抽取 getConversationGroups(),列表 / Markdown 导出共用完整数据源
   - 包体从 77K 降到 29K
+- **2026-07-31** v1.0.4 提交审核
+  - 修复 ChatGPT 单条消息时目录误显示:observer 漏监听 data-message-author-role 属性变化(只监听 childList/characterData),导致 tocItems 卡在 2 条、目录持续显示;且 renderTOC 设的 display:none 被 CSS display:flex !important 覆盖,容器仍可 hover 展开
+  - 修复:observer 加 attributeFilter 监听 data-message-author-role + 2 秒兜底轮询;隐藏改用 .hidden class + CSS !important
