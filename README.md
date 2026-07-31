@@ -11,6 +11,8 @@
   </a>
   <img src="https://img.shields.io/chrome-web-store/users/ogjecajdbalhobcpigopjjpjkbhkeaak.svg?label=Users" alt="Chrome Web Store Users">
   <img src="https://img.shields.io/chrome-web-store/rating/ogjecajdbalhobcpigopjjpjkbhkeaak.svg?label=Rating" alt="Chrome Web Store Rating">
+  <br>
+  <sub><a href="CHANGELOG.md">📋 更新历史</a></sub>
 </div>
 
 ---
