@@ -14,19 +14,19 @@
 
 ### 当前状态
 
-- 最新版本 **v1.0.5**(2026-07-31 打包,待提审),完整版本历史见 [CHANGELOG.md](CHANGELOG.md)
-- 当前线上版本:v1.0.3
-- ⏳ 等待 v1.0.5 提审 / 审核结果
+- 最新版本 **v1.0.6**(2026-08-14 提审),完整版本历史见 [CHANGELOG.md](../CHANGELOG.md)
+- 当前线上版本:v1.0.5
+- ⏳ 等待 v1.0.6 审核结果
 
 ### 短期(审核期)
 
 - [ ] ⏳ 关注审核邮件,留意 Chrome Web Store 后台状态变化
 - [ ] 🙋 **如果被拒**:把拒信原文(reason / 政策条款编号 / 审核员留言)截图/复制给我,我来分析并给出修改方案
-- [ ] 🙋 **如果通过**:检查线上版本是否为 v1.0.4,并做一次三平台冒烟测试
+- [ ] 🙋 **如果通过**:检查线上版本是否为 v1.0.6,并做一次三平台冒烟测试
 
 ### 审核通过后立即检查
 
-- [ ] 🙋 Chrome Web Store 版本显示为 `1.0.4`
+- [ ] 🙋 Chrome Web Store 版本显示为 `1.0.6`
 - [ ] 🙋 中文浏览器下扩展名称 / 描述 / 导出弹窗 / 导出内容显示中文
 - [ ] 🙋 英文浏览器下扩展名称 / 描述 / 导出弹窗 / 导出内容显示英文
 - [ ] 🙋 ChatGPT / Gemini / Claude 各发 2 条以上提问,确认目录出现、点击跳转正常
@@ -74,6 +74,18 @@
 - [x] 🤖 修复 ChatGPT 单条消息时目录误显示:observer 加 attributes 监听 data-message-author-role 变化 + 2 秒兜底轮询,确保 tocItems 与 DOM 同步
 - [x] 🤖 修复目录容器未真正隐藏(CSS display:flex !important 覆盖了 inline display:none):改用 .hidden class + CSS !important
 
+### v1.0.5 已完成
+
+- [x] 🤖 ChatGPT 虚拟滚动 sessionStorage 缓存:刷新后目录立即恢复全部历史消息
+- [x] 🤖 点击被移出 DOM 的目录项时按顺序估算位置滚动、触发重渲染重试
+- [x] 🤖 会话切换改用 URL pathname 检测,可靠清空缓存(替代 stableId 碰撞检测)
+- [x] 🤖 隐藏 ChatGPT 官方长对话目录(CSS,避免与插件目录重叠)
+
+### v1.0.6 已完成
+
+- [x] 🤖 进入对话自动全程扫描,补全虚拟滚动外的早期消息(目录打开即全)
+- [x] 🤖 官方目录隐藏加 JS 兜底(hideOfficialToc),CSS + JS 双保险
+
 ### 想到再加的功能(候选,不一定都做)
 
 - [ ] 🤖 收藏列表单独视图(只看星标的提问)
@@ -110,7 +122,7 @@ AI 平台 DOM 改版是**这类扩展的最大杀手**。下面是可能突然�
 
 1. 🤖 我修代码,跑 `node --check src/content.js`
 2. 🤖 我改 `src/manifest.json` 的 `version`(语义版本:bug 修复 1.0.x,小功能 1.x.0,大改 x.0.0)
-3. 🤖 我重新打包到 `dist/`(从 `src/` 压缩,zip 顶层即 manifest.json)
+3. 🤖 我跑 `node scripts/package.mjs` 打包到 `dist/`(zip 顶层即 manifest.json)
 4. 🤖 我 commit + push
 5. 🙋 你登录 Web Store 后台,上传新 zip,提交审核
 6. 🙋 等审核(通常比首次快,几小时内)
@@ -131,16 +143,4 @@ AI 平台 DOM 改版是**这类扩展的最大杀手**。下面是可能突然�
 
 ## 历史
 
-- **2026-06-20** v1.0.0 首次提交 Chrome Web Store 审核
-  - 涵盖功能:三平台目录(ChatGPT/Gemini/Claude)、收藏、Markdown 导出、图片导出
-  - 同会话完成的稳定性优化:全链路 try-catch、Claude 选择器多级回退、renderTOC 改 stableId 匹配、observer 性能优化、XSS 防护
-- **2026-06-23** v1.0.1 审核通过并发布
-- **2026-06-24** v1.0.2 提交审核
-  - 中英双语(i18n)、导出 UI 修复、目录不遮挡弹窗、抗改版与稳定性增强
-- **2026-07-14** v1.0.3 提交审核,后审核通过并上线(当前线上版本)
-  - 移除「导出为图片」功能及 html2canvas 依赖(html2canvas 在 ChatGPT/Gemini/Claude 等 SPA 上渲染不稳定,反复卡死/文字重叠),仅保留 Markdown 导出
-  - 抽取 getConversationGroups(),列表 / Markdown 导出共用完整数据源
-  - 包体从 77K 降到 29K
-- **2026-07-31** v1.0.4 提交审核
-  - 修复 ChatGPT 单条消息时目录误显示:发消息瞬间捕获过第 2 个 user 元素(消息克隆/模板),之后该元素 role 被改但 observer 只监听 childList/characterData、漏监听 attributes,导致 tocItems 卡在 2 条、目录持续显示;且 renderTOC 设的 display:none 被 CSS display:flex !important 覆盖,容器仍可 hover 展开
-  - 修复:observer 加 attributeFilter 监听 data-message-author-role + 2 秒兜底轮询;隐藏改用 .hidden class + CSS !important
+见 [CHANGELOG.md](../CHANGELOG.md)。

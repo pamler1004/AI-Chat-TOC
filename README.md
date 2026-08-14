@@ -77,16 +77,11 @@ node --check src/content.js
 ## 📦 打包发布
 
 ```bash
-# 1. 语法自检
-node --check src/content.js
-
-# 2. 从 src/ 压缩为 zip(zip 内顶层即 manifest.json,不能多套一层 src/ 目录)
-(cd src && zip -r ../dist/ai-chat-toc-1.0.4.zip . -x "*.DS_Store" -x "*/.DS_Store")
-
-# 3. 上传 dist/ai-chat-toc-*.zip 到 Chrome Web Store 开发者后台
+# 一键打包:语法自检 + 从 src/ 压缩为 zip(zip 内顶层即 manifest.json)
+node scripts/package.mjs
 ```
 
-上传 `dist/ai-chat-toc-*.zip` 到 [Chrome Web Store 开发者后台](https://chrome.google.com/webstore/devconsole)。
+生成 `dist/ai-chat-toc-<version>.zip`,上传到 [Chrome Web Store 开发者后台](https://chrome.google.com/webstore/devconsole)。
 
 ## 📁 项目结构
 
@@ -94,10 +89,13 @@ node --check src/content.js
 ai-chat-toc/
 ├── src/                # 扩展源代码(Chrome 加载 / Store 上传内容)
 ├── dist/               # 打包产物(zip),不纳入版本管理
+├── docs/               # 规划与待办(roadmap.md / todo.md)
+├── scripts/            # 打包脚本(package.mjs)
 ├── store/              # 商店素材(上架文案、截图等)
+├── AGENTS.md           # 项目规则(CLAUDE.md 是它的 symlink)
 ├── README.md           # 项目说明(本文件)
-├── ROADMAP.md          # 维护路线图与定期检查清单
-├── TODO.md             # 待办事项
+├── CHANGELOG.md        # 更新历史
+├── LICENSE             # MIT
 └── .gitignore
 ```
 
@@ -120,6 +118,7 @@ ai-chat-toc/
 - **MutationObserver** — 实时监听 DOM 结构和流式文本变化,防抖更新目录
 - **SPA 路由钩子** — 拦截 `pushState` / `replaceState` / `popstate`,适配 Claude 等单页应用
 - **stableId DOM diff** — 用稳定哈希 + 出现次数后缀匹配,避免重复提问撞 ID 和重渲染闪烁
+- **虚拟滚动自动扫描** — ChatGPT 激进虚拟滚动下,进入对话程序化扫描全程 + sessionStorage 缓存,目录始终完整
 - **XSS 防护** — 全链路 `escapeHtml` / `textContent`
 
 ## 📝 许可证

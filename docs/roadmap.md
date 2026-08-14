@@ -1,18 +1,16 @@
 # ROADMAP - 维护路线图
 
 > AI Chat TOC 上线后的维护规划与节奏。
-> 配合 [TODO.md](./TODO.md) 使用:**本文讲「方向 + 节奏」,TODO 讲「具体事项」。**
+> 配合 [todo.md](./todo.md) 使用:**本文讲「方向 + 节奏」,TODO 讲「具体事项」。**
 
 ---
 
 ## 📍 当前状态
 
-- **v1.0.1** 已审核通过并发布
-- **v1.0.2** 已于 2026-06-24 提交 Chrome Web Store 审核
-- **v1.0.3** 已审核通过并上线(2026-07-14 提审;移除不稳定的图片导出功能;当前线上版本)
-- **v1.0.4** 已于 2026-07-31 提交 Chrome Web Store 审核(修复 ChatGPT 单条消息目录误显示)
-- 仓库当前为 **private**,可在稳定后按需改 public
-- ⏳ 等待 v1.0.4 审核结果
+- **v1.0.5** 当前线上版本(2026-07-31;虚拟滚动 sessionStorage 缓存、隐藏 ChatGPT 官方目录等)
+- **v1.0.6** 已于 2026-08-14 提交 Chrome Web Store 审核(进入对话自动扫描补全目录 + 官方目录 JS 兜底)
+- 仓库已 **public**:[github.com/pamler1004/AI-Chat-TOC](https://github.com/pamler1004/AI-Chat-TOC)
+- ⏳ 等待 v1.0.6 审核结果
 
 ---
 
@@ -64,7 +62,7 @@
 
 ## 🎯 迭代方向(候选)
 
-按价值 / 成本粗略排序,不一定都做,按用户反馈和兴趣挑选。完整清单见 [TODO.md §二](./TODO.md)。
+按价值 / 成本粗略排序,不一定都做,按用户反馈和兴趣挑选。完整清单见 [todo.md §二](./todo.md)。
 
 **高价值 · 低成本**
 - 收藏列表单独视图:只看星标提问
@@ -92,12 +90,11 @@
 
 **已规划版本**
 
-- `v1.0.2`:已提交审核,重点修复导出 UI、中英双语和平台抗改版。
-- `v1.0.3`:已审核通过并上线,移除不稳定的图片导出功能及 html2canvas 依赖,抽取统一导出数据源,包体从 77K 降到 29K。
-- `v1.0.4`:已提交审核,修复 ChatGPT 单条消息时目录误显示(observer 漏监听 data-message-author-role 属性变化 + CSS display:flex !important 覆盖隐藏)。
+- `v1.0.6`:已提交审核(进入对话自动扫描补全目录 + 官方目录 JS 兜底)。
 - `v1.1.0`:首批用户反馈收集后的迭代,候选见上方。
+- 历史版本细节见 [CHANGELOG.md](../CHANGELOG.md)。
 
-> 发版步骤见 [TODO.md §四](./TODO.md)。
+> 发版步骤见 [todo.md §四](./todo.md)。
 
 ---
 
@@ -114,18 +111,4 @@
 
 ## 📜 变更日志
 
-- **2026-06-20** v1.0.0 首次提交审核(三平台目录、收藏、Markdown / 图片导出)
-- **2026-06-21** 项目结构重组为 `src/` + `dist/` + `store/`,补齐 README 与 ROADMAP
-- **2026-06-23** v1.0.1 审核通过并发布;README 补充 Chrome Web Store 徽章和安装链接
-- **2026-06-24** v1.0.2 提交审核
-  - 界面、导出内容、扩展名称 / 描述中英双语
-  - 导出弹窗 CSS 加固,避免被 ChatGPT/Gemini/Claude 全局样式污染
-  - 导出弹窗期间临时隐藏右侧目录,避免 fixed/pinned 面板遮挡
-  - Claude/Gemini 选择器多级回退、stableId 冲突修复、流式输出实时更新、死代码清理
-- **2026-07-14** v1.0.3 提交审核,后审核通过并上线(当前线上版本)
-  - 移除「导出为图片」功能及 html2canvas 依赖(SPA 页面渲染不稳定,反复卡死/文字重叠),仅保留 Markdown 导出
-  - 抽取 getConversationGroups(),列表 / Markdown 导出共用完整数据源
-  - 包体从 77K 降到 29K
-- **2026-07-31** v1.0.4 提交审核
-  - 修复 ChatGPT 单条消息时目录误显示:observer 漏监听 data-message-author-role 属性变化(只监听 childList/characterData),导致 tocItems 卡在 2 条、目录持续显示;且 renderTOC 设的 display:none 被 CSS display:flex !important 覆盖,容器仍可 hover 展开
-  - 修复:observer 加 attributeFilter 监听 data-message-author-role + 2 秒兜底轮询;隐藏改用 .hidden class + CSS !important
+见 [CHANGELOG.md](../CHANGELOG.md)(单一权威,不再在此重复记录)。
