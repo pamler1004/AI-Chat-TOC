@@ -6,6 +6,16 @@ AI Chat TOC 的所有显著变更记录。
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-08-14
+
+### Added
+
+- **进入 ChatGPT 对话自动扫描补全目录**:ChatGPT 激进虚拟滚动只保留视口附近约 4 条消息,打开对话默认在底部时早期消息从没进过 DOM,导致目录缺项、必须手动滚到顶才能补全。新增 `scanWholeConversation()`,进入对话后程序化滚动经过全程、沿途缓存所有消息(连续 3 步无新增即自适应停止、回原位),目录打开即全;每个会话只扫一次。
+
+### Fixed
+
+- **ChatGPT 官方长对话目录在部分环境未被隐藏**:纯 CSS 隐藏规则在扩展未重载最新样式 / 旧版本 / ChatGPT 动态重建目录等场景下失效。新增 `hideOfficialToc()` JS 兜底,复用 `updateTOC` 的初始执行 + MutationObserver + 2s 兜底轮询三重触发,CSS + JS 双保险。
+
 ## [1.0.5] - 2026-07-31
 
 ### Fixed

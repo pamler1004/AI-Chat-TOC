@@ -509,9 +509,56 @@ function updateTOC() {
       parseClaude();
     }
     renderTOC();
+    hideOfficialToc(); // 隐藏 ChatGPT 官方长对话目录（CSS 未命中时的 JS 兜底）
   } catch (e) {
     console.error('[AI Chat TOC] updateTOC failed:', e);
   }
+}
+
+// 隐藏 ChatGPT 官方长对话目录（>5 轮自动出现的右侧竖条，与插件目录位置重叠）
+// styles.css 已有同名 CSS 规则；此处 JS 兜底应对扩展 CSS 未重载 / 旧版本 / ChatGPT 动态重建等场景。
+// 复用 updateTOC 的三重触发：初始执行(1s) + MutationObserver 变化 + 兜底轮询(2s)
+function hideOfficialToc() {
+  if (currentPlatform !== 'chatgpt') return;
+  document.querySelectorAll(
+    'div[class*="inset-e-4"][class*="top-1/2"][class*="translate-y-1/2"][class*="z-20"]'
+  ).forEach(el => {
+    if (el.id === 'ai-toc-container') return; // 防御：绝不隐藏插件自身目录
+    el.style.setProperty('display', 'none', 'important');
+  });
+}
+
+// 进入对话时全程扫描：把虚拟滚动移出视口的消息缓存进目录
+// 解决「打开对话默认在底部，早期消息从没进过 DOM → 目录缺项，必须手动滚才能补」
+// 策略：程序化从当前位滚到顶，沿途 parseChatGPT 缓存；连续 3 步无新增 user 即停，再回原位
+let scannedConvKey = ''; // 已扫描的会话 pathname，避免重复扫描
+async function scanWholeConversation() {
+  if (currentPlatform !== 'chatgpt') return;
+  const convKey = location.pathname;
+  if (scannedConvKey === convKey || window.__tocScanning) return;
+  const scrollEl = document.querySelector('main');
+  if (!scrollEl || scrollEl.scrollHeight <= scrollEl.clientHeight) return; // 无滚动条(对话短，无需扫)
+  scannedConvKey = convKey;
+  window.__tocScanning = true;
+  const origTop = scrollEl.scrollTop;
+  const step = Math.max(Math.round(scrollEl.clientHeight * 0.6), 200); // 每步约 0.6 屏，确保虚拟滚动窗口重叠不漏
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  let top = scrollEl.scrollTop, lastCount = knownUserOrder.length, stableSteps = 0;
+  try {
+    while (top > 0) {
+      top = Math.max(0, top - step);
+      scrollEl.scrollTo({ top, behavior: 'auto' });
+      await wait(130); // 等 ChatGPT 虚拟滚动把新视口消息挂进 DOM
+      parseChatGPT();
+      const count = knownUserOrder.length;
+      if (count === lastCount) { if (++stableSteps >= 3) break; } else { stableSteps = 0; } // 连续 3 步无新增→到顶/扫完
+      lastCount = count;
+    }
+    scrollEl.scrollTo({ top: origTop, behavior: 'auto' }); // 回原位
+    await wait(130);
+    parseChatGPT();
+  } catch (e) { /* 扫描失败不阻塞主功能 */ }
+  window.__tocScanning = false;
 }
 
 // 解析 ChatGPT 页面
@@ -592,6 +639,12 @@ function parseChatGPT() {
   }
   lastConvKey = convKey;
   try { sessionStorage.setItem('aiTocChatgptConvKey', convKey); } catch (e) {}
+
+  // 进入新对话：延迟全程扫描一次，把虚拟滚动外的早期消息缓存进目录(每个会话只扫一次)
+  if (convKey && scannedConvKey !== convKey && !window.__tocScanning && !window.__tocScanScheduled) {
+    window.__tocScanScheduled = true;
+    setTimeout(() => { window.__tocScanScheduled = false; scanWholeConversation(); }, 800);
+  }
 
   // 虚拟滚动缓存:更新已见的 user 消息(ChatGPT 会把视口外的 user 消息移出 DOM)
   const currentUserIds = new Set();

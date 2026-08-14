@@ -521,7 +521,8 @@
    完全重叠(官方 right:16px vs 插件 right:20px),两者并排挤在一起视觉混乱。
    官方目录特征 class: fixed inset-e-4 top-1/2 z-20 -translate-y-1/2
    (右侧 16px、垂直居中的 36x120 竖条)。隐藏后只保留插件目录
-   (支持收藏/导出/三平台/阈值低)。注:ChatGPT 若改 class 名会失效,届时更新选择器。 */
+   (支持收藏/导出/三平台/阈值低)。注:ChatGPT 若改 class 名会失效,届时更新选择器。
+   另:content.js 的 hideOfficialToc() 用同一选择器做 JS 兜底(CSS 未注入/动态重建时生效),改 class 需同步两处。 */
 div[class*="inset-e-4"][class*="top-1/2"][class*="translate-y-1/2"][class*="z-20"] {
   display: none !important;
 }
