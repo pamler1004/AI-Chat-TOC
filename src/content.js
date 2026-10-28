@@ -8,10 +8,11 @@ const CONFIG = {
   selectors: {
     chatgpt: {
       // 查找所有用户提问的容器
-      // 策略：ChatGPT 的用户消息通常带有 data-message-author-role="user" 属性
-      userMessage: '[data-message-author-role="user"]',
-      // 备用选择器（如果属性找不到）
-      // userMessageFallback: '.group.w-full:has(.whitespace-pre-wrap)',
+      // 策略：多级回退，应对 ChatGPT DOM 大改版
+      // 旧版（2026-10 前）：消息容器带 data-message-author-role="user"
+      // 新版（2026-10 原子类重构）：ol[data-conversation-transcript] > li[data-message-role="user"]，
+      //   用户文本在 [data-user-message-copy]，AI 回复在 [data-assistant-markdown-root]
+      userMessage: '[data-message-author-role="user"], [data-conversation-transcript] li[data-message-role="user"]',
       contentContainer: 'main', // 主要滚动区域
       scrollTarget: 'main .react-scroll-to-bottom--css-ikkyv-79elbk' // 或者是 html/body，视具体实现而定
     },
@@ -483,7 +484,7 @@ function startObserving() {
     characterData: true, // 监听文本变化，用于流式输出实时更新
     characterDataOldValue: false, // 不需要旧值，减少内存占用
     attributes: true, // 监听 data-message-author-role 变化（ChatGPT 改 role 时不触发 childList）
-    attributeFilter: ['data-message-author-role']
+    attributeFilter: ['data-message-author-role', 'data-message-role'] // 新旧两代 role 属性
   });
 
   // 初始执行一次
@@ -528,6 +529,17 @@ function hideOfficialToc() {
   });
 }
 
+// 新版 ChatGPT（2026-10 重构）改为整页/documentElement 滚动，旧版是 main 内部滚动容器
+// 取实际可滚动的元素：main 可滚则用 main，否则回退页面滚动
+function getChatGPTScrollEl() {
+  const main = document.querySelector('main');
+  if (main) {
+    const oy = getComputedStyle(main).overflowY;
+    if ((oy === 'auto' || oy === 'scroll') && main.scrollHeight > main.clientHeight + 4) return main;
+  }
+  return document.scrollingElement || document.documentElement;
+}
+
 // 进入对话时全程扫描：把虚拟滚动移出视口的消息缓存进目录
 // 解决「打开对话默认在底部，早期消息从没进过 DOM → 目录缺项，必须手动滚才能补」
 // 策略：程序化从当前位滚到顶，沿途 parseChatGPT 缓存；连续 3 步无新增 user 即停，再回原位
@@ -536,7 +548,7 @@ async function scanWholeConversation() {
   if (currentPlatform !== 'chatgpt') return;
   const convKey = location.pathname;
   if (scannedConvKey === convKey || window.__tocScanning) return;
-  const scrollEl = document.querySelector('main');
+  const scrollEl = getChatGPTScrollEl();
   if (!scrollEl || scrollEl.scrollHeight <= scrollEl.clientHeight) return; // 无滚动条(对话短，无需扫)
   scannedConvKey = convKey;
   window.__tocScanning = true;
@@ -564,8 +576,8 @@ async function scanWholeConversation() {
 // 解析 ChatGPT 页面
 function parseChatGPT() {
   const userSelector = CONFIG.selectors.chatgpt.userMessage;
-  // AI 回复选择器 - 查找 assistant 角色的消息
-  const aiSelector = '[data-message-author-role="assistant"]';
+  // AI 回复选择器 - 查找 assistant 角色的消息（新旧 DOM 多级回退）
+  const aiSelector = '[data-message-author-role="assistant"], [data-conversation-transcript] li[data-message-role="assistant"]';
 
   // 获取所有消息（用户 + AI），按页面顺序排列
   const allElements = document.querySelectorAll(`${userSelector}, ${aiSelector}`);
@@ -593,17 +605,23 @@ function parseChatGPT() {
   });
 
   topLevelElements.forEach((el, index) => {
-    const isUser = el.getAttribute('data-message-author-role') === 'user';
-    const isAi = el.getAttribute('data-message-author-role') === 'assistant';
+    // 旧版 DOM 用 data-message-author-role，新版用 data-message-role
+    const role = el.getAttribute('data-message-author-role') || el.getAttribute('data-message-role');
+    const isUser = role === 'user';
+    const isAi = role === 'assistant';
 
     if (!isUser && !isAi) return;
 
     // 尝试获取文本内容
-    const textDiv = el.innerText || el.textContent;
+    // 新版 DOM 优先从精确文本容器取：li.innerText 会混入「你说：/ChatGPT 说：」归属标签
+    const textSource = el.querySelector('[data-user-message-copy], [data-assistant-markdown-root]');
+    const textDiv = (textSource && textSource.innerText) || el.innerText || el.textContent;
     let text = textDiv.trim();
-    // 统一只取第一行作为标题
-    const lines = text.split('\n');
-    text = lines[0].trim();
+    // 统一只取第一行作为标题；跳过单独成行的归属标签行（新版 DOM 兜底）
+    const lines = text.split('\n').map(l => l.trim()).filter(
+      l => l && !/^(你说|You said|ChatGPT 说|ChatGPT said)[：:]?\s*$/i.test(l)
+    );
+    text = lines[0] || '';
 
     // 生成唯一 ID：哈希 + 出现次数后缀（解决相同内容冲突）
     const hash = hashCode(text);
@@ -1131,14 +1149,27 @@ function getConversationGroups() {
 }
 
 function getChatGPTGroups() {
-  const messages = document.querySelectorAll('[data-message-author-role]');
+  // 旧版 DOM: data-message-author-role；新版（2026-10 重构）: li[data-message-role]
+  const messages = document.querySelectorAll(
+    '[data-message-author-role], [data-conversation-transcript] li[data-message-role]'
+  );
   const conversationGroups = [];
   if (messages.length === 0) return conversationGroups;
 
   let currentGroup = null;
   messages.forEach(msg => {
-    const role = msg.getAttribute('data-message-author-role');
-    let text = msg.innerText || msg.textContent;
+    const role = msg.getAttribute('data-message-author-role') || msg.getAttribute('data-message-role');
+    // 新版 DOM 从精确文本容器取全文，避免混入「你说：/ChatGPT 说：」标签和操作按钮
+    let text;
+    if (role === 'user') {
+      const copies = msg.querySelectorAll('[data-user-message-copy]');
+      text = copies.length > 0
+        ? Array.from(copies).map(c => c.innerText).join('\n\n')
+        : (msg.innerText || msg.textContent);
+    } else {
+      const mdRoot = msg.querySelector('[data-assistant-markdown-root]');
+      text = (mdRoot && mdRoot.innerText) || msg.innerText || msg.textContent;
+    }
     text = cleanChatText(text);
     if (!text.trim()) return;
 
@@ -1348,7 +1379,10 @@ function cleanChatText(text) {
 
   // 针对 Gemini 的 "你说 " / "You said" 标签进行清理
   // 移除开头的 "你说" 或 "You said" 以及随后的空白字符（包括换行）
-  const labels = [/^你说\s*/, /^You said\s*/i];
+  const labels = [
+    /^你说[：:]?\s*/, /^You said[：:]?\s*/i, // Gemini 及新版 ChatGPT 的用户归属标签
+    /^ChatGPT 说[：:]?\s*/, /^ChatGPT said[：:]?\s*/i // 新版 ChatGPT 的 AI 归属标签
+  ];
 
   for (const label of labels) {
     if (label.test(cleaned)) {
@@ -1562,7 +1596,7 @@ function createClickHandler(item, div) {
         const idx = userItems.findIndex(t => t.stableId === item.stableId);
         if (idx >= 0) {
           const ratio = userItems.length > 1 ? idx / (userItems.length - 1) : 0;
-          const scrollEl = document.querySelector('main') || document.scrollingElement || document.documentElement;
+          const scrollEl = getChatGPTScrollEl();
           const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
           scrollEl.scrollTo({ top: Math.round(maxScroll * ratio), behavior: 'auto' });
           setTimeout(() => {
