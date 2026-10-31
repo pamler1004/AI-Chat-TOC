@@ -679,7 +679,11 @@ function parseChatGPT() {
   try { sessionStorage.setItem('aiTocChatgptConvKey', convKey); } catch (e) {}
 
   // 进入新对话：延迟全程扫描一次，把虚拟滚动外的早期消息缓存进目录(每个会话只扫一次)
-  if (convKey && scannedConvKey !== convKey && !window.__tocScanning && !window.__tocScanScheduled) {
+  // 登录态 app-shell 新版(消息单元 data-content-search-unit-key)全量挂载视口外消息
+  // (content-visibility 式跳过渲染,元素仍在 DOM),扫描扫不出新东西,只有开屏滚动抖动 → 跳过。
+  // 匿名新版实测仍会把视口外消息移出 DOM(6 轮只剩 4 轮在 DOM),保留扫描。
+  const isAppShellDom = !!document.querySelector('[data-content-search-unit-key]');
+  if (convKey && !isAppShellDom && scannedConvKey !== convKey && !window.__tocScanning && !window.__tocScanScheduled) {
     window.__tocScanScheduled = true;
     setTimeout(() => { window.__tocScanScheduled = false; scanWholeConversation(); }, 800);
   }
