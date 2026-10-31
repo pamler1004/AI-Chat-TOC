@@ -6,6 +6,14 @@ AI Chat TOC 的所有显著变更记录。
 
 ## [Unreleased]
 
+## [1.0.7] - 2026-10-31
+
+### Fixed
+
+- **ChatGPT 2026-10 前端重构导致目录 / 导出 / 跳转全面失效**:ChatGPT 匿名版与登录版相继切换到全新前端,移除了 `data-message-author-role`,扩展在对话页完全无输出。消息选择器升级为三代 DOM 多级回退:旧版(`data-message-author-role`)、2026-10 匿名态新版(`li[data-message-role]`,文本取 `[data-user-message-copy]` / `[data-assistant-markdown-root]`)、2026-10 登录态 app-shell 版(消息单元 `[data-content-search-unit-key]`,用户文本取 `[data-user-message-bubble]`),角色识别统一收敛到新增的 `getChatMsgRole()`。
+- **新版界面「你说：/ChatGPT 说：」归属标签污染标题与导出**:新版在消息上方渲染归属标签,直接取容器文本会把标签混进目录标题和导出内容。改为优先从精确文本容器取文本,标题提取跳过单独成行的标签,`cleanChatText` 清洗带冒号变体。
+- **滚动容器不再固定导致跳转兜底失效**:匿名新版改为整页滚动,登录态 app-shell 的滚动容器是内层 `.thread-scroll-container`(不再是 `main`)。新增 `getChatGPTScrollEl()` 从消息容器向上探测真正可滚动的元素,修复进入对话的全程扫描与点击目录项被移出 DOM 时的位置估算兜底。
+
 ## [1.0.6] - 2026-08-14
 
 ### Added
