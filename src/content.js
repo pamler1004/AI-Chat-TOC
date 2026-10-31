@@ -8,11 +8,13 @@ const CONFIG = {
   selectors: {
     chatgpt: {
       // 查找所有用户提问的容器
-      // 策略：多级回退，应对 ChatGPT DOM 大改版
-      // 旧版（2026-10 前）：消息容器带 data-message-author-role="user"
-      // 新版（2026-10 原子类重构）：ol[data-conversation-transcript] > li[data-message-role="user"]，
+      // 策略：多级回退，应对 ChatGPT DOM 大改版（角色识别见 getChatMsgRole）
+      // v1 旧版（2026-10 前）：消息容器带 data-message-author-role="user"
+      // v2 2026-10 匿名态新版（原子类重构）：ol[data-conversation-transcript] > li[data-message-role="user"]，
       //   用户文本在 [data-user-message-copy]，AI 回复在 [data-assistant-markdown-root]
-      userMessage: '[data-message-author-role="user"], [data-conversation-transcript] li[data-message-role="user"]',
+      // v3 2026-10 登录态 app-shell 重写：消息单元 [data-content-search-unit-key]（user/assistant 交替），
+      //   用户文本在 [data-user-message-bubble]，AI 单元含 h4[data-conversation-role="assistant"]
+      userMessage: '[data-message-author-role="user"], [data-conversation-transcript] li[data-message-role="user"], [data-content-search-unit-key]',
       contentContainer: 'main', // 主要滚动区域
       scrollTarget: 'main .react-scroll-to-bottom--css-ikkyv-79elbk' // 或者是 html/body，视具体实现而定
     },
@@ -529,13 +531,18 @@ function hideOfficialToc() {
   });
 }
 
-// 新版 ChatGPT（2026-10 重构）改为整页/documentElement 滚动，旧版是 main 内部滚动容器
-// 取实际可滚动的元素：main 可滚则用 main，否则回退页面滚动
+// 新版 ChatGPT 滚动容器不再固定是 main：匿名新版整页滚动，登录态 app-shell 是内层 div。
+// 从消息容器向上找第一个真正可滚动的元素，找不到再回退页面滚动
+// 注意锚点必须按优先级单独取：复合选择器按文档序返回，main 在消息单元之前会拿错
 function getChatGPTScrollEl() {
-  const main = document.querySelector('main');
-  if (main) {
-    const oy = getComputedStyle(main).overflowY;
-    if ((oy === 'auto' || oy === 'scroll') && main.scrollHeight > main.clientHeight + 4) return main;
+  const anchor = document.querySelector('[data-content-search-unit-key]')
+    || document.querySelector('[data-conversation-transcript]')
+    || document.querySelector('main');
+  let el = anchor;
+  while (el && el !== document.documentElement) {
+    const oy = getComputedStyle(el).overflowY;
+    if ((oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight + 4) return el;
+    el = el.parentElement;
   }
   return document.scrollingElement || document.documentElement;
 }
@@ -573,11 +580,25 @@ async function scanWholeConversation() {
   window.__tocScanning = false;
 }
 
+// ChatGPT 三代 DOM 的消息角色识别
+// v1: data-message-author-role；v2: li[data-message-role]；
+// v3: 消息单元 [data-content-search-unit-key]，用户消息含 [data-user-message-bubble]，
+//     AI 消息含 [data-conversation-role="assistant"]（归属标题 H4）
+function getChatMsgRole(el) {
+  const r = el.getAttribute('data-message-author-role') || el.getAttribute('data-message-role');
+  if (r === 'user' || r === 'assistant') return r;
+  if (el.hasAttribute('data-content-search-unit-key')) {
+    if (el.querySelector('[data-user-message-bubble]')) return 'user';
+    if (el.querySelector('[data-conversation-role="assistant"]')) return 'assistant';
+  }
+  return null;
+}
+
 // 解析 ChatGPT 页面
 function parseChatGPT() {
   const userSelector = CONFIG.selectors.chatgpt.userMessage;
-  // AI 回复选择器 - 查找 assistant 角色的消息（新旧 DOM 多级回退）
-  const aiSelector = '[data-message-author-role="assistant"], [data-conversation-transcript] li[data-message-role="assistant"]';
+  // AI 回复选择器 - 查找 assistant 角色的消息（三代 DOM 多级回退，单元容器由 getChatMsgRole 分类）
+  const aiSelector = '[data-message-author-role="assistant"], [data-conversation-transcript] li[data-message-role="assistant"], [data-content-search-unit-key]';
 
   // 获取所有消息（用户 + AI），按页面顺序排列
   const allElements = document.querySelectorAll(`${userSelector}, ${aiSelector}`);
@@ -605,16 +626,15 @@ function parseChatGPT() {
   });
 
   topLevelElements.forEach((el, index) => {
-    // 旧版 DOM 用 data-message-author-role，新版用 data-message-role
-    const role = el.getAttribute('data-message-author-role') || el.getAttribute('data-message-role');
+    const role = getChatMsgRole(el);
     const isUser = role === 'user';
     const isAi = role === 'assistant';
 
     if (!isUser && !isAi) return;
 
     // 尝试获取文本内容
-    // 新版 DOM 优先从精确文本容器取：li.innerText 会混入「你说：/ChatGPT 说：」归属标签
-    const textSource = el.querySelector('[data-user-message-copy], [data-assistant-markdown-root]');
+    // 新版 DOM 优先从精确文本容器取：消息容器 innerText 会混入「你说：/ChatGPT 说：」归属标签
+    const textSource = el.querySelector('[data-user-message-copy], [data-user-message-bubble], [data-assistant-markdown-root]');
     const textDiv = (textSource && textSource.innerText) || el.innerText || el.textContent;
     let text = textDiv.trim();
     // 统一只取第一行作为标题；跳过单独成行的归属标签行（新版 DOM 兜底）
@@ -1149,23 +1169,27 @@ function getConversationGroups() {
 }
 
 function getChatGPTGroups() {
-  // 旧版 DOM: data-message-author-role；新版（2026-10 重构）: li[data-message-role]
+  // 三代 DOM 多级回退（角色识别见 getChatMsgRole）
   const messages = document.querySelectorAll(
-    '[data-message-author-role], [data-conversation-transcript] li[data-message-role]'
+    '[data-message-author-role], [data-conversation-transcript] li[data-message-role], [data-content-search-unit-key]'
   );
   const conversationGroups = [];
   if (messages.length === 0) return conversationGroups;
 
   let currentGroup = null;
   messages.forEach(msg => {
-    const role = msg.getAttribute('data-message-author-role') || msg.getAttribute('data-message-role');
+    const role = getChatMsgRole(msg);
+    if (!role) return;
     // 新版 DOM 从精确文本容器取全文，避免混入「你说：/ChatGPT 说：」标签和操作按钮
     let text;
     if (role === 'user') {
       const copies = msg.querySelectorAll('[data-user-message-copy]');
-      text = copies.length > 0
-        ? Array.from(copies).map(c => c.innerText).join('\n\n')
-        : (msg.innerText || msg.textContent);
+      if (copies.length > 0) {
+        text = Array.from(copies).map(c => c.innerText).join('\n\n');
+      } else {
+        const bubble = msg.querySelector('[data-user-message-bubble]');
+        text = (bubble && bubble.innerText) || msg.innerText || msg.textContent;
+      }
     } else {
       const mdRoot = msg.querySelector('[data-assistant-markdown-root]');
       text = (mdRoot && mdRoot.innerText) || msg.innerText || msg.textContent;
